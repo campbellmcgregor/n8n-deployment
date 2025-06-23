@@ -1,4 +1,4 @@
-#!/bin/bash
+s#!/bin/bash
 
 # n8n Start Script
 # Convenient script to start the n8n local deployment
