@@ -53,7 +53,9 @@ A robust, production-ready local deployment of n8n using Docker Compose. This se
 - **HTTPS Support** - Optional SSL termination with Caddy
 - **Custom Nodes** - Support for custom node development
 - **External Hooks** - Extensible backend hooks
-- **Backup Management** - Automated backup solutions
+- **Backup & Restore** - Complete backup/restore system with validation
+- **Service Management** - Convenient start/stop scripts with multiple modes
+- **Test Suite** - Comprehensive testing for backup/restore functionality
 - **Monitoring Ready** - Built-in health checks and logging
 
 ## 📋 Prerequisites
@@ -286,21 +288,46 @@ docker-compose exec n8n n8n export:workflow --backup --output=/home/node/.n8n/ba
 docker-compose exec postgres pg_dump -U n8n n8n > ./backups/postgres-backup-$(date +%Y%m%d).sql
 ```
 
-### Automated Backup Script
+### Convenience Scripts
 
-Create `scripts/backup.sh`:
+This deployment includes several convenience scripts for easy management:
+
+#### Service Management
 
 ```bash
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
+# Start n8n services (multiple modes available)
+./scripts/start_n8n.sh              # Normal start
+./scripts/start_n8n.sh --https      # Start with HTTPS
+./scripts/start_n8n.sh --dev        # Development mode
 
-# Backup n8n data
-docker-compose exec n8n n8n export:workflow --backup --output=/home/node/.n8n/backups/n8n-backup-$DATE.tar.gz
+# Stop n8n services (multiple options)
+./scripts/stop_n8n.sh               # Graceful stop
+./scripts/stop_n8n.sh --force       # Force stop
+./scripts/stop_n8n.sh --clean       # Stop and cleanup
+```
 
-# Backup database
-docker-compose exec postgres pg_dump -U n8n n8n > ./backups/postgres-backup-$DATE.sql
+#### Backup and Restore
 
-echo "Backup completed: $DATE"
+```bash
+# Create backup
+./scripts/backup.sh
+
+# List available backups
+./scripts/restore.sh --list
+
+# Restore from backup
+./scripts/restore.sh                        # Interactive selection
+./scripts/restore.sh 20250622_143000        # Specific backup
+./scripts/restore.sh --workflows-only       # Workflows only
+./scripts/restore.sh --database-only        # Database only
+```
+
+#### Testing
+
+```bash
+# Run backup/restore tests
+./tests/test-backup-restore.sh
+./tests/test-backup-restore.sh --quick
 ```
 
 ## 🔧 Troubleshooting
