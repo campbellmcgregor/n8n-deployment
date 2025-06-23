@@ -36,6 +36,15 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Generate secure random key
+generate_key() {
+    openssl rand -hex 32
+}
+
+print_warning() {
+    print_color $YELLOW "⚠ $1"
+}
+
 # Check prerequisites
 check_prerequisites() {
     print_header "Checking Prerequisites"
@@ -78,14 +87,53 @@ create_directories() {
     done
 }
 
+# Setup environment file
+setup_environment() {
+    print_header "Setting up Environment"
+
+    if [ -f ".env" ]; then
+        print_warning "Environment file already exists. Backing up to .env.backup"
+        cp .env .env.backup
+    fi
+
+    if [ ! -f "env.template" ]; then
+        print_error "env.template file not found!"
+        exit 1
+    fi
+
+    print_step "Copying environment template"
+    cp env.template .env
+
+    # Generate secure keys
+    print_step "Generating secure keys..."
+    ENCRYPTION_KEY=$(generate_key)
+    JWT_SECRET=$(generate_key)
+    DB_PASSWORD=$(generate_key | cut -c1-16) # Shorter for DB password
+
+    # Replace placeholders in .env file
+    if command_exists sed; then
+        sed -i.tmp "s/your_encryption_key_here_32_chars_min/$ENCRYPTION_KEY/g" .env
+        sed -i.tmp "s/your_jwt_secret_here_32_chars_minimum/$JWT_SECRET/g" .env
+        sed -i.tmp "s/n8n_secure_password/$DB_PASSWORD/g" .env
+        rm -f .env.tmp
+        print_step "Updated .env file with secure keys"
+    else
+        print_warning "sed command not found. Please manually update the .env file with secure keys."
+        print_color $YELLOW "Encryption Key: $ENCRYPTION_KEY"
+        print_color $YELLOW "JWT Secret: $JWT_SECRET"
+        print_color $YELLOW "DB Password: $DB_PASSWORD"
+    fi
+}
+
 # Main execution
 main() {
     print_header "n8n Local Deployment Setup"
 
     check_prerequisites
     create_directories
+    setup_environment
 
-    print_color $GREEN "Basic setup completed! 🚀"
+    print_color $GREEN "Setup completed! 🚀"
 }
 
 # Run main function if script is executed directly
