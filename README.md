@@ -37,7 +37,7 @@ A comprehensive Docker-based local deployment setup for n8n workflow automation 
 - **Redis**: Queue and cache management (port 6379)
 - **Caddy**: Optional HTTPS termination (ports 80/443)
 
-# Local n8n Deployment
+## Local n8n Deployment
 
 A robust, production-ready local deployment of n8n using Docker Compose. This setup includes PostgreSQL database, Redis queue management, and optional HTTPS support via Caddy reverse proxy.
 
@@ -67,6 +67,26 @@ A robust, production-ready local deployment of n8n using Docker Compose. This se
 
 ## 🛠️ Quick Start
 
+### Option A: Using Just (Recommended)
+
+```bash
+# 1. Clone the repository
+git clone <your-repo-url> local-n8n
+cd local-n8n
+
+# 2. Install just (if not already installed)
+brew install just  # macOS
+# or: cargo install just
+
+# 3. Run setup and start
+just setup
+just start
+
+# 4. Access n8n at: http://localhost:5678
+```
+
+### Option B: Manual Setup
+
 ### 1. Clone and Setup
 
 ```bash
@@ -95,9 +115,11 @@ nano .env
 ```bash
 # Generate encryption key
 openssl rand -hex 32
+# or: just gen-key
 
 # Generate JWT secret
 openssl rand -hex 32
+# or: just gen-jwt
 ```
 
 ### 4. Start the Services
@@ -105,12 +127,15 @@ openssl rand -hex 32
 ```bash
 # Start all services
 docker-compose up -d
+# or: just start
 
 # Check service status
 docker-compose ps
+# or: just status
 
 # View logs
 docker-compose logs -f n8n
+# or: just logs-n8n
 ```
 
 ### 5. Access n8n
@@ -119,7 +144,7 @@ Open your browser and navigate to: <http://localhost:5678>
 
 ## 📁 Directory Structure
 
-```
+```text
 local-n8n/
 ├── README.md                 # This file
 ├── docker-compose.yml        # Main Docker Compose configuration
@@ -278,56 +303,95 @@ N8N_METRICS_PREFIX=n8n_
 
 ## 💾 Backup and Restore
 
-### Manual Backup
+### Using Just Task Runner
+
+This deployment includes a comprehensive `justfile` for easy management. Install `just` first:
 
 ```bash
-# Backup workflows and credentials
-docker-compose exec n8n n8n export:workflow --backup --output=/home/node/.n8n/backups/
-
-# Backup database
-docker-compose exec postgres pg_dump -U n8n n8n > ./backups/postgres-backup-$(date +%Y%m%d).sql
+# Install just (choose one)
+brew install just                    # macOS
+cargo install just                   # Cross-platform
+curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 ```
 
-### Convenience Scripts
+#### Quick Start with Just
 
-This deployment includes several convenience scripts for easy management:
+```bash
+# Show all available commands
+just
+
+# Setup and start n8n
+just setup
+just start
+
+# Common operations
+just health                          # Check service health
+just logs-n8n                       # View n8n logs
+just backup                         # Create backup
+just backup-list                    # List backups
+just stop                           # Stop services
+```
 
 #### Service Management
 
 ```bash
 # Start n8n services (multiple modes available)
-./scripts/start_n8n.sh              # Normal start
-./scripts/start_n8n.sh --https      # Start with HTTPS
-./scripts/start_n8n.sh --dev        # Development mode
+just start                          # Normal start
+just start-https                    # Start with HTTPS
+just start-dev                      # Start in development mode
+just start-https-dev                # HTTPS + development mode
 
 # Stop n8n services (multiple options)
-./scripts/stop_n8n.sh               # Graceful stop
-./scripts/stop_n8n.sh --force       # Force stop
-./scripts/stop_n8n.sh --clean       # Stop and cleanup
+just stop                           # Graceful stop
+just stop-force                     # Force stop without confirmation
+just stop-clean                     # Stop and remove all data (⚠️ DESTRUCTIVE!)
+just restart                        # Restart services
 ```
 
 #### Backup and Restore
 
 ```bash
-# Create backup
-./scripts/backup.sh
+# Create and manage backups
+just backup                         # Create backup
+just backup-list                    # List available backups
 
-# List available backups
-./scripts/restore.sh --list
-
-# Restore from backup
-./scripts/restore.sh                        # Interactive selection
-./scripts/restore.sh 20250622_143000        # Specific backup
-./scripts/restore.sh --workflows-only       # Workflows only
-./scripts/restore.sh --database-only        # Database only
+# Restore operations
+just restore                        # Interactive restore selection
+just restore-date 20250622_143000   # Restore specific backup
+just restore-workflows DATE         # Restore only workflows
+just restore-database DATE          # Restore only database
+just restore-force DATE             # Force restore without confirmation
 ```
 
-#### Testing
+#### Monitoring and Debugging
 
 ```bash
-# Run backup/restore tests
-./tests/test-backup-restore.sh
-./tests/test-backup-restore.sh --quick
+# Service monitoring
+just health                         # Comprehensive health check
+just status                         # Container status
+just logs-n8n                       # n8n logs
+just logs-db                        # Database logs
+just stats                          # Resource usage
+
+# Development tools
+just shell                          # Open shell in n8n container
+just db-connect                     # Connect to PostgreSQL
+just redis-cli                      # Connect to Redis CLI
+just version                        # Show n8n version
+```
+
+#### Testing and Utilities
+
+```bash
+# Run tests
+just test                           # Run backup/restore tests
+just test-quick                     # Quick tests
+
+# Utilities
+just urls                           # Show all service URLs
+just check-deps                     # Check required dependencies
+just update                         # Update to latest n8n version
+just clean-containers               # Clean up stopped containers
 ```
 
 ## 🔧 Troubleshooting
@@ -338,21 +402,21 @@ This deployment includes several convenience scripts for easy management:
 
 ```bash
 # Check service logs
-docker-compose logs [service-name]
+just logs-n8n
 
 # Verify environment variables
-docker-compose config
+just env
 ```
 
 #### Database Connection Issues
 
 ```bash
 # Test database connection
-docker-compose exec postgres pg_isready -U n8n -d n8n
+just db-info
 
 # Reset database (⚠️ DESTRUCTIVE)
-docker-compose down -v
-docker-compose up -d
+just stop-clean
+just start
 ```
 
 #### Permission Issues
@@ -366,7 +430,7 @@ sudo chown -R $USER:$USER ./logs ./backups ./custom-nodes
 
 ```bash
 # Check container memory usage
-docker stats
+just stats
 
 # Increase memory limits in docker-compose.yml
 ```
@@ -380,7 +444,7 @@ Enable debug logging:
 N8N_LOG_LEVEL=debug
 
 # Restart services
-docker-compose restart n8n
+just restart
 ```
 
 ## 🔄 Updates
@@ -388,22 +452,19 @@ docker-compose restart n8n
 ### Update n8n
 
 ```bash
-# Pull latest images
-docker-compose pull
-
-# Restart with new images
-docker-compose up -d
+# Update to latest version
+just update
 ```
 
 ### Update PostgreSQL
 
 ```bash
 # Backup first!
-docker-compose exec postgres pg_dump -U n8n n8n > ./backups/pre-update-backup.sql
+just backup
 
 # Update image version in docker-compose.yml
 # Then restart
-docker-compose up -d postgres
+just restart
 ```
 
 ## 🧪 Development
@@ -419,13 +480,18 @@ cd custom-nodes/
 npm init -y
 npm install n8n
 # Develop your custom node
-docker-compose restart n8n
+just restart
 ```
 
 ### External Hook Development
 
 1. Edit `external-hooks/external-hooks.js`
 2. Restart n8n to apply changes
+
+```bash
+# After editing external-hooks.js
+just restart
+```
 
 ## 📚 Resources
 
@@ -455,6 +521,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Regularly backup your data
 - Monitor access logs
 - Consider using VPN for remote access
+
+## 📋 Command Reference
+
+For a complete list of available commands, run:
+
+```bash
+just --list
+```
+
+Common commands:
+
+- `just setup` - Initial setup
+- `just start` - Start services  
+- `just stop` - Stop services
+- `just health` - Check health
+- `just backup` - Create backup
+- `just logs-n8n` - View logs
+- `just shell` - Open container shell
 
 ## 🆘 Support
 

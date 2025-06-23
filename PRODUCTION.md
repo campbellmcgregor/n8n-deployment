@@ -6,9 +6,9 @@ This guide covers deploying n8n in production environments with security, perfor
 
 ### Security
 
-- [ ] Generate strong encryption keys (32+ characters)
-- [ ] Use secure database passwords
-- [ ] Enable HTTPS with valid SSL certificates
+- [ ] Generate strong encryption keys (32+ characters) - `just gen-key`
+- [ ] Use secure database passwords - `just gen-jwt`
+- [ ] Enable HTTPS with valid SSL certificates - `just start-https`
 - [ ] Configure firewall rules
 - [ ] Set up user authentication
 - [ ] Review and customize external hooks
@@ -19,12 +19,12 @@ This guide covers deploying n8n in production environments with security, perfor
 - [ ] Optimize PostgreSQL settings
 - [ ] Set up dedicated worker processes
 - [ ] Configure proper resource limits
-- [ ] Enable monitoring and logging
+- [ ] Enable monitoring and logging - `just health`
 
 ### Reliability
 
-- [ ] Set up automated backups
-- [ ] Configure health checks
+- [ ] Set up automated backups - `just backup`
+- [ ] Configure health checks - `just health`
 - [ ] Set up monitoring and alerting
 - [ ] Plan disaster recovery procedures
 - [ ] Test failover scenarios
@@ -53,7 +53,7 @@ QUEUE_HEALTH_CHECK_ACTIVE=true
 
 ```bash
 # Enable HTTPS with Caddy
-docker-compose --profile https up -d
+just start-https
 
 # Or use custom SSL certificates
 # Update caddy/Caddyfile with your domain and certificates
@@ -62,17 +62,17 @@ docker-compose --profile https up -d
 ### Monitoring
 
 - Enable n8n metrics endpoint
-- Set up PostgreSQL monitoring
-- Monitor Redis performance
-- Configure log aggregation
-- Set up uptime monitoring
+- Set up PostgreSQL monitoring - `just db-info`
+- Monitor Redis performance - `just redis-info`
+- Configure log aggregation - `just logs-follow`
+- Set up uptime monitoring - `just health`
 
 ### Backup Strategy
 
 ```bash
 # Automated daily backups
 crontab -e
-# Add: 0 2 * * * /path/to/local-n8n/scripts/backup.sh
+# Add: 0 2 * * * cd /path/to/local-n8n && just backup
 ```
 
 ## Scaling Considerations
@@ -104,52 +104,64 @@ crontab -e
 
 - Enable user management and authentication
 - Configure RBAC (Role-Based Access Control)
-- Regular security updates
+- Regular security updates - `just update`
 - Audit workflow permissions
-- Monitor and log access attempts
+- Monitor and log access attempts - `just logs-follow`
 
 ## Maintenance
 
 ### Regular Tasks
 
-- [ ] Update Docker images monthly
+- [ ] Update Docker images monthly - `just update`
 - [ ] Review and rotate secrets quarterly
-- [ ] Check backup integrity weekly
-- [ ] Monitor performance metrics daily
-- [ ] Review logs for anomalies
+- [ ] Check backup integrity weekly - `just backup-list`
+- [ ] Monitor performance metrics daily - `just stats`
+- [ ] Review logs for anomalies - `just logs-follow`
 
 ### Update Procedure
 
 1. Test updates in staging environment
 2. Schedule maintenance window
-3. Create full backup
-4. Update Docker images
-5. Verify functionality
-6. Monitor performance post-update
+3. Create full backup - `just backup`
+4. Update Docker images - `just pull`
+5. Verify functionality - `just health`
+6. Monitor performance post-update - `just stats`
 
 ## Troubleshooting
 
 ### Common Issues
 
-- **Service startup failures**: Check logs with `docker-compose logs`
-- **Database connection issues**: Verify credentials and network
-- **Performance problems**: Monitor resource usage and optimize
-- **SSL certificate issues**: Check Caddy configuration and DNS
+- **Service startup failures**: Check logs with `just logs-n8n`
+- **Database connection issues**: Verify credentials with `just db-info`
+- **Performance problems**: Monitor with `just stats`
+- **SSL certificate issues**: Check with `just logs-follow`
 
 ### Diagnostic Commands
 
 ```bash
 # Check service status
-docker-compose ps
+just status
 
 # View logs
-docker-compose logs -f n8n
+just logs-n8n
 
 # Health check
-./scripts/health-check.sh
+just health
 
 # Database backup
-./scripts/backup.sh
+just backup
+
+# Show all service URLs
+just urls
+
+# Check resource usage
+just stats
+
+# Database connection test
+just db-connect
+
+# Redis connection test
+just redis-cli
 ```
 
 ## Support Resources
