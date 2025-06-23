@@ -51,6 +51,13 @@ check_prerequisites() {
         exit 1
     fi
     print_step "Docker Compose is installed"
+
+    # Check if Docker daemon is running
+    if ! docker info >/dev/null 2>&1; then
+        print_error "Docker daemon is not running. Please start Docker first."
+        exit 1
+    fi
+    print_step "Docker daemon is running"
 }
 
 # Create necessary directories
