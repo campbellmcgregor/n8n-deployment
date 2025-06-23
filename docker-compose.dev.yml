@@ -1,0 +1,39 @@
+version: "3.8"
+
+# Development override for local n8n deployment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  n8n:
+    environment:
+      - N8N_LOG_LEVEL=debug
+      - N8N_DIAGNOSTICS_ENABLED=true
+      - N8N_METRICS=true
+      - NODE_ENV=development
+    volumes:
+      - ./custom-nodes:/home/node/.n8n/custom:rw
+      - ./workflows:/home/node/.n8n/workflows:rw
+    ports:
+      - "5678:5678"
+      - "9229:9229" # Debug port
+
+  n8n-worker:
+    environment:
+      - N8N_LOG_LEVEL=debug
+      - NODE_ENV=development
+
+  n8n-webhook:
+    environment:
+      - N8N_LOG_LEVEL=debug
+      - NODE_ENV=development
+
+  postgres:
+    environment:
+      - POSTGRES_LOG_STATEMENT=all
+    ports:
+      - "5432:5432"
+
+  redis:
+    command: redis-server --appendonly yes --loglevel debug
+    ports:
+      - "6379:6379"
