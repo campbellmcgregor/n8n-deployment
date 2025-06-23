@@ -1,6 +1,122 @@
-# n8n Local Deployment
+<div align="center">
 
-A comprehensive Docker-based local deployment setup for n8n workflow automation platform with advanced features, monitoring, and production-ready configurations.
+# n8n Self-Hosted & Local Deployment
+
+<img src="https://upload.wikimedia.org/wikipedia/commons/5/53/N8n-logo-new.svg" alt="n8n Logo" style="display:block;margin:20px auto">
+
+</div>
+
+A comprehensive Docker-based self-hosted / local deployment setup for n8n workflow automation platform with advanced features, monitoring, and production-ready configurations.
+
+## Architecture Overview
+
+The cloud deployment architecture shows the main components and data flow:
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'background': 'transparent', 'primaryColor': 'transparent', 'primaryTextColor': '#666666', 'primaryBorderColor': '#888888', 'lineColor': '#888888', 'edgeLabelBackground': 'rgba(255,255,255,0.8)', 'clusterBkg': 'transparent', 'clusterBorder': '#888888'}}}%%
+graph TB
+    subgraph "Users & External Systems"
+        USER["👤 Users"]
+        EXTERNAL["🌐 External APIs"]
+    end
+    
+    subgraph "Cloud Infrastructure"
+        ALB["⚖️ Load Balancer<br/>HTTPS & Traffic Distribution"]
+        
+        subgraph "Application Layer"
+            N8N_APPS["🔧 n8n Services<br/>• Main App<br/>• Workers<br/>• Webhooks"]
+        end
+        
+        subgraph "Data Layer"
+            DATABASE["🗄️ PostgreSQL<br/>Workflows & Data"]
+            CACHE["⚡️ Redis<br/>Queue & Cache"]
+        end
+        
+        subgraph "Storage"
+            FILES["🪣 Object Storage<br/>Files & Backups"]
+        end
+        
+        subgraph "Security & Monitoring"
+            SECURITY["🛡️ Security<br/>WAF & Secrets"]
+            MONITORING["📊 Monitoring<br/>Logs & Metrics"]
+        end
+    end
+    
+    %% User connections
+    USER -->|HTTPS| ALB
+    EXTERNAL -->|Webhooks| ALB
+    
+    %% Traffic flow
+    ALB --> N8N_APPS
+    
+    %% Application connections
+    N8N_APPS --> DATABASE
+    N8N_APPS --> CACHE
+    N8N_APPS --> FILES
+    
+    %% Security & Monitoring
+    SECURITY --> N8N_APPS
+    N8N_APPS --> MONITORING
+    
+    %% Soft harmonious color palette with gentle contrast
+    classDef users fill:#e8f4f8,stroke:#b8d4da,stroke-width:2px,color:#2c5282,font-weight:bold,font-size:14px
+    classDef network fill:#f0f4ff,stroke:#c3dafe,stroke-width:2px,color:#3c366b,font-weight:bold,font-size:14px
+    classDef app fill:#fef5e7,stroke:#f6e05e,stroke-width:2px,color:#744210,font-weight:bold,font-size:14px
+    classDef data fill:#e6fffa,stroke:#81e6d9,stroke-width:2px,color:#234e52,font-weight:bold,font-size:14px
+    classDef storage fill:#f0fff4,stroke:#9ae6b4,stroke-width:2px,color:#22543d,font-weight:bold,font-size:14px
+    classDef support fill:#fff5f5,stroke:#feb2b2,stroke-width:2px,color:#742a2a,font-weight:bold,font-size:14px
+    
+    class USER,EXTERNAL users
+    class ALB network
+    class N8N_APPS app
+    class DATABASE,CACHE data
+    class FILES storage
+    class SECURITY,MONITORING support
+```
+
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Features](#features-1)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start-1)
+  - [Option A: Using Just (Recommended)](#option-a-using-just-recommended)
+  - [Option B: Manual Setup](#option-b-manual-setup)
+- [Directory Structure](#directory-structure)
+- [Configuration](#configuration)
+  - [Environment Variables](#environment-variables)
+  - [Custom Nodes](#custom-nodes)
+  - [External Hooks](#external-hooks)
+- [Service Management](#service-management)
+  - [Basic Commands](#basic-commands)
+  - [Health Checks](#health-checks)
+- [HTTPS Setup](#https-setup)
+- [Monitoring and Logging](#monitoring-and-logging)
+- [Backup and Restore](#backup-and-restore)
+  - [Using Just Task Runner](#using-just-task-runner)
+  - [Service Management](#service-management-1)
+  - [Backup and Restore](#backup-and-restore-1)
+  - [Monitoring and Debugging](#monitoring-and-debugging)
+  - [Testing and Utilities](#testing-and-utilities)
+- [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+  - [Debug Mode](#debug-mode)
+- [Updates](#updates)
+- [Development](#development)
+  - [Custom Node Development](#custom-node-development)
+  - [External Hook Development](#external-hook-development)
+
+### Key Components
+
+- **🌐 Load Balancer** - HTTPS termination and traffic distribution
+- **🔧 n8n Services** - Main app, workers, and webhook handlers
+- **🗄️ PostgreSQL** - Primary database for workflows and data
+- **⚡️ Redis** - Queue management and caching
+- **🪣 Object Storage** - Files, backups, and binary data
+- **🛡️ Security & Monitoring** - WAF, secrets, logging, and metrics
 
 ## Features
 
@@ -17,12 +133,12 @@ A comprehensive Docker-based local deployment setup for n8n workflow automation 
 
 1. **Clone and Setup**:
 
-   ```bash
-   git clone <repository-url>
-   cd local-n8n
-   chmod +x scripts/setup.sh
-   ./scripts/setup.sh
-   ```
+```bash
+git clone <repository-url>
+cd n8n-self-hosted
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
 
 2. **Access n8n**: Open <http://localhost:5678> in your browser
 
@@ -37,13 +153,11 @@ A comprehensive Docker-based local deployment setup for n8n workflow automation 
 - **Redis**: Queue and cache management (port 6379)
 - **Caddy**: Optional HTTPS termination (ports 80/443)
 
-## Local n8n Deployment
+## n8n Self-Hosted / Local Deployment
 
-A robust, production-ready local deployment of n8n using Docker Compose. This setup includes PostgreSQL database, Redis queue management, and optional HTTPS support via Caddy reverse proxy.
+A robust, production-ready self-hosted / local deployment of n8n using Docker Compose. This setup includes PostgreSQL database, Redis queue management, and optional HTTPS support via Caddy reverse proxy.
 
-![n8n Workflow Editor](https://docs.n8n.io/_images/n8n-docs-icon.svg)
-
-## 🚀 Features
+## Features
 
 - **Self-hosted n8n** - Full-featured workflow automation platform
 - **PostgreSQL Database** - Reliable data persistence
@@ -58,21 +172,21 @@ A robust, production-ready local deployment of n8n using Docker Compose. This se
 - **Test Suite** - Comprehensive testing for backup/restore functionality
 - **Monitoring Ready** - Built-in health checks and logging
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Docker Engine 20.10+
 - Docker Compose 2.0+
 - At least 2GB RAM available
 - 10GB free disk space (recommended)
 
-## 🛠️ Quick Start
+## Quick Start
 
 ### Option A: Using Just (Recommended)
 
 ```bash
 # 1. Clone the repository
-git clone <your-repo-url> local-n8n
-cd local-n8n
+git clone https://github.com/tjs-w/local-n8n-deployment n8n-self-hosted
+cd n8n-self-hosted
 
 # 2. Install just (if not already installed)
 brew install just  # macOS
@@ -90,8 +204,8 @@ just start
 ### 1. Clone and Setup
 
 ```bash
-git clone <your-repo-url> local-n8n
-cd local-n8n
+git clone https://github.com/tjs-w/local-n8n-deployment n8n-self-hosted
+cd n8n-self-hosted
 ```
 
 ### 2. Configure Environment
@@ -142,10 +256,10 @@ docker-compose logs -f n8n
 
 Open your browser and navigate to: <http://localhost:5678>
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```text
-local-n8n/
+n8n-self-hosted/
 ├── README.md                 # This file
 ├── docker-compose.yml        # Main Docker Compose configuration
 ├── env.template             # Environment variables template
@@ -163,7 +277,7 @@ local-n8n/
     └── config/
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -205,7 +319,7 @@ module.exports = {
 };
 ```
 
-## 🚦 Service Management
+## Service Management
 
 ### Basic Commands
 
@@ -242,7 +356,7 @@ docker-compose exec redis redis-cli ping
 curl http://localhost:5678/healthz
 ```
 
-## 🔐 HTTPS Setup
+## HTTPS Setup
 
 To enable HTTPS with automatic SSL certificates:
 
@@ -276,7 +390,7 @@ WEBHOOK_URL=https://your-domain.com/
 docker-compose --profile https up -d
 ```
 
-## 📊 Monitoring and Logging
+## Monitoring and Logging
 
 ### Log Locations
 
@@ -301,7 +415,7 @@ N8N_METRICS=true
 N8N_METRICS_PREFIX=n8n_
 ```
 
-## 💾 Backup and Restore
+## Backup and Restore
 
 ### Using Just Task Runner
 
@@ -394,7 +508,7 @@ just update                         # Update to latest n8n version
 just clean-containers               # Clean up stopped containers
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -447,7 +561,7 @@ N8N_LOG_LEVEL=debug
 just restart
 ```
 
-## 🔄 Updates
+## Updates
 
 ### Update n8n
 
@@ -467,7 +581,7 @@ just backup
 just restart
 ```
 
-## 🧪 Development
+## Development
 
 ### Custom Node Development
 
@@ -492,56 +606,3 @@ just restart
 # After editing external-hooks.js
 just restart
 ```
-
-## 📚 Resources
-
-- [n8n Documentation](https://docs.n8n.io/)
-- [n8n Community](https://community.n8n.io/)
-- [Docker Documentation](https://docs.docker.com/)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Redis Documentation](https://redis.io/documentation)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## ⚠️ Security Notes
-
-- Always use strong passwords and secrets
-- Keep your n8n instance updated
-- Use HTTPS in production
-- Regularly backup your data
-- Monitor access logs
-- Consider using VPN for remote access
-
-## 📋 Command Reference
-
-For a complete list of available commands, run:
-
-```bash
-just --list
-```
-
-Common commands:
-
-- `just setup` - Initial setup
-- `just start` - Start services  
-- `just stop` - Stop services
-- `just health` - Check health
-- `just backup` - Create backup
-- `just logs-n8n` - View logs
-- `just shell` - Open container shell
-
-## 🆘 Support
-
-- [GitHub Issues](https://github.com/your-repo/issues)
-- [n8n Community Forum](https://community.n8n.io/)
-- [Discord Server](https://discord.gg/n8n)

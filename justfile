@@ -1,4 +1,4 @@
-# n8n Local Deployment Justfile
+# n8n Self-Hosted / Local Deployment Justfile
 # Convenient commands for managing your local n8n deployment
 
 # Load environment variables from .env file

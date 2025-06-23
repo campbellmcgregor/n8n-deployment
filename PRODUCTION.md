@@ -72,7 +72,7 @@ just start-https
 ```bash
 # Automated daily backups
 crontab -e
-# Add: 0 2 * * * cd /path/to/local-n8n && just backup
+# Add: 0 2 * * * cd /path/to/n8n-self-hosted && just backup
 ```
 
 ## Scaling Considerations

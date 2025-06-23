@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # n8n Stop Script
-# Convenient script to stop the n8n local deployment
+# Convenient script to stop the n8n self-hosted / local deployment
 
 set -e
 
@@ -141,7 +141,7 @@ confirm_destructive_action() {
 
 # Main execution
 main() {
-    print_header "Stopping n8n Local Deployment"
+    print_header "Stopping n8n Self-Hosted / Local Deployment"
 
     # Pre-flight checks
     check_docker

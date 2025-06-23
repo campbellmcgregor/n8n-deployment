@@ -1,4 +1,4 @@
-# Caddy Configuration for n8n Local Deployment
+# Caddy Configuration for n8n Self-Hosted / Local Deployment
 # 
 # For production use:
 # 1. Replace 'localhost' with your actual domain name

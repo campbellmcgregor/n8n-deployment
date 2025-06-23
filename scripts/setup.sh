@@ -169,7 +169,7 @@ show_access_info() {
 
 # Main execution
 main() {
-    print_header "n8n Local Deployment Setup"
+    print_header "n8n Self-Hosted / Local Deployment Setup"
 
     check_prerequisites
     create_directories

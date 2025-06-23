@@ -1,7 +1,7 @@
-s#!/bin/bash
+#!/bin/bash
 
 # n8n Start Script
-# Convenient script to start the n8n local deployment
+# Convenient script to start the n8n self-hosted / local deployment
 
 set -e
 
@@ -113,7 +113,7 @@ done
 
 # Main execution
 main() {
-    print_header "Starting n8n Local Deployment"
+    print_header "Starting n8n Self-Hosted / Local Deployment"
 
     # Pre-flight checks
     check_docker
