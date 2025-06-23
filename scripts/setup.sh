@@ -125,6 +125,48 @@ setup_environment() {
     fi
 }
 
+# Start services
+start_services() {
+    print_header "Starting Services"
+
+    print_step "Pulling Docker images..."
+    docker-compose pull
+
+    print_step "Starting services in detached mode..."
+    docker-compose up -d
+
+    print_step "Waiting for services to be ready..."
+    sleep 10
+
+    # Check service health
+    if docker-compose ps | grep -q "Up"; then
+        print_step "Services are running!"
+    else
+        print_warning "Some services might still be starting up. Check with: docker-compose ps"
+    fi
+}
+
+# Show access information
+show_access_info() {
+    print_header "Access Information"
+
+    echo ""
+    print_color $GREEN "🎉 n8n is now running!"
+    echo ""
+    print_color $BLUE "Access URLs:"
+    print_color $BLUE "  • n8n Editor: http://localhost:5678"
+    print_color $BLUE "  • n8n API: http://localhost:5678/api"
+    print_color $BLUE "  • PostgreSQL: localhost:5432"
+    print_color $BLUE "  • Redis: localhost:6379"
+    echo ""
+    print_color $YELLOW "Useful commands:"
+    print_color $YELLOW "  • View logs: docker-compose logs -f n8n"
+    print_color $YELLOW "  • Stop services: docker-compose down"
+    print_color $YELLOW "  • Backup data: ./scripts/backup.sh"
+    echo ""
+    print_color $GREEN "Happy automating! 🚀"
+}
+
 # Main execution
 main() {
     print_header "n8n Local Deployment Setup"
@@ -133,7 +175,16 @@ main() {
     create_directories
     setup_environment
 
-    print_color $GREEN "Setup completed! 🚀"
+    echo ""
+    read -p "Do you want to start the services now? (y/N): " -n 1 -r
+    echo ""
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        start_services
+        show_access_info
+    else
+        print_color $YELLOW "Setup completed! Run 'docker-compose up -d' when you're ready to start."
+    fi
 }
 
 # Run main function if script is executed directly
