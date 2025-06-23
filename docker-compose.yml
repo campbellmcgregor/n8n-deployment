@@ -48,8 +48,10 @@ x-n8n-common: &n8n-common
     - ./logs:/home/node/.n8n/logs
     - ./shared:/data/shared
   depends_on:
-    - postgres
-    - redis
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
 
 services:
   # PostgreSQL Database
@@ -71,6 +73,16 @@ services:
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -h localhost -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Redis for Queue Management
   redis:
@@ -85,6 +97,12 @@ services:
     volumes:
       - redis_storage:/data
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # n8n Main Application
   n8n:
