@@ -1,6 +1,41 @@
 # n8n Local Deployment
 
-A Docker-based local deployment setup for n8n workflow automation platform.
+A comprehensive Docker-based local deployment setup for n8n workflow automation platform with advanced features, monitoring, and production-ready configurations.
+
+## Features
+
+- **Production-Ready**: Full PostgreSQL + Redis + n8n stack
+- **HTTPS Support**: Optional Caddy reverse proxy with automatic TLS
+- **Queue Management**: Redis-powered background job processing
+- **Monitoring**: Health checks and comprehensive logging
+- **Backup System**: Automated backup and restore functionality
+- **Security**: Secure key generation and environment management
+- **External Hooks**: Custom workflow and credential event handling
+- **Worker Processes**: Dedicated worker and webhook processes
+
+## Quick Start
+
+1. **Clone and Setup**:
+
+   ```bash
+   git clone <repository-url>
+   cd local-n8n
+   chmod +x scripts/setup.sh
+   ./scripts/setup.sh
+   ```
+
+2. **Access n8n**: Open <http://localhost:5678> in your browser
+
+3. **Optional HTTPS**: Enable with `docker-compose --profile https up -d`
+
+## Architecture
+
+- **n8n Main**: Workflow editor and API (port 5678)
+- **n8n Worker**: Background task processing
+- **n8n Webhook**: High-throughput webhook handling (port 5679)
+- **PostgreSQL**: Persistent data storage (port 5432)
+- **Redis**: Queue and cache management (port 6379)
+- **Caddy**: Optional HTTPS termination (ports 80/443)
 
 # Local n8n Deployment
 
