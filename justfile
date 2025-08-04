@@ -164,6 +164,16 @@ backup-list:
   @echo "📋 Available backups:"
   ./scripts/restore.sh --list
 
+# Test backup functionality
+backup-test:
+  @echo "🧪 Testing backup functionality..."
+  @echo "1. Checking backup directory permissions..."
+  @ls -la ./backups 2>/dev/null || echo "Backups directory doesn't exist - will be created"
+  @echo "2. Testing backup process..."
+  @./scripts/backup.sh
+  @echo "3. Verifying backup files..."
+  @ls -lh ./backups/ | tail -5
+
 # Restore from backup (interactive selection)
 restore:
   @echo "🔄 Starting restore process..."
