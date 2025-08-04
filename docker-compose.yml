@@ -32,6 +32,7 @@ x-n8n-common: &n8n-common
     - N8N_TEMPLATES_ENABLED=true
     - N8N_PUBLIC_API_ENABLED=true
     - N8N_METRICS=false
+    - EXECUTIONS_MODE=queue
     - QUEUE_BULL_REDIS_HOST=redis
     - QUEUE_BULL_REDIS_PORT=6379
     - QUEUE_BULL_REDIS_DB=${REDIS_DB:-0}
@@ -117,24 +118,10 @@ services:
     hostname: n8n-worker
     container_name: n8n-worker
     restart: unless-stopped
-    command: n8n worker
+    command: worker
     depends_on:
       - n8n
 
-  # n8n Webhook Process (optional, for high-throughput webhook handling)
-  n8n-webhook:
-    <<: *n8n-common
-    hostname: n8n-webhook
-    container_name: n8n-webhook
-    restart: unless-stopped
-    ports:
-      - "${N8N_WEBHOOK_PORT:-5679}:5678"
-    environment:
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5679/}
-      - N8N_DISABLE_UI=true
-    command: n8n webhook
-    depends_on:
-      - n8n
 
   # Optional: Caddy reverse proxy for HTTPS termination
   caddy:
