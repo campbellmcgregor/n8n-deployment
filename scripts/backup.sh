@@ -15,7 +15,14 @@ mkdir -p "$BACKUP_DIR"
 
 # Backup n8n workflows and credentials
 echo "Backing up n8n workflows and credentials..."
-docker compose exec -T n8n n8n export:workflow --backup --output=".n8n/backups/n8n-backup-$DATE.tar.gz"
+docker compose exec -T n8n n8n export:workflow --backup --output=".n8n/backups/n8n-backup-$DATE/"
+
+# Create tar.gz archive from the exported directory
+echo "Creating archive from exported workflows..."
+docker compose exec -T n8n tar -czf ".n8n/backups/n8n-backup-$DATE.tar.gz" -C ".n8n/backups" "n8n-backup-$DATE"
+
+# Clean up temporary directory
+docker compose exec -T n8n rm -rf ".n8n/backups/n8n-backup-$DATE"
 
 # Backup database
 echo "Backing up PostgreSQL database..."
