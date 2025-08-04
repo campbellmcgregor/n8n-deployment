@@ -90,20 +90,20 @@ just --list
 
 ## Alternative Commands
 
-If you prefer direct docker-compose commands:
+If you prefer direct docker compose commands:
 
 ```bash
 # View service status
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f n8n
+docker compose logs -f n8n
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Restart services
-docker-compose restart
+docker compose restart
 ```
 
 ## Troubleshooting 🔧

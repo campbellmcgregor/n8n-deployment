@@ -41,7 +41,7 @@ check_docker_service() {
     local service=$1
     local container_name=$2
 
-    if docker-compose ps "$service" | grep -q "Up.*healthy\|Up.*running"; then
+    if docker compose ps "$service" | grep -q "Up.*healthy\|Up.*running"; then
         print_color $GREEN "✓ $service container is running"
         return 0
     else
@@ -53,7 +53,7 @@ check_docker_service() {
 print_header "n8n Deployment Health Check"
 
 # Check if Docker Compose is running
-if ! docker-compose ps >/dev/null 2>&1; then
+if ! docker compose ps >/dev/null 2>&1; then
     print_color $RED "✗ Docker Compose services not found. Are they running?"
     exit 1
 fi
@@ -66,7 +66,7 @@ services_ok=true
 # PostgreSQL
 if check_docker_service "postgres" "n8n-postgres"; then
     # Test database connection
-    if docker-compose exec -T postgres pg_isready -U n8n -d n8n >/dev/null 2>&1; then
+    if docker compose exec -T postgres pg_isready -U n8n -d n8n >/dev/null 2>&1; then
         print_color $GREEN "  └─ Database connection OK"
     else
         print_color $RED "  └─ Database connection failed"
@@ -79,7 +79,7 @@ fi
 # Redis
 if check_docker_service "redis" "n8n-redis"; then
     # Test Redis connection
-    if docker-compose exec -T redis redis-cli ping | grep -q "PONG"; then
+    if docker compose exec -T redis redis-cli ping | grep -q "PONG"; then
         print_color $GREEN "  └─ Redis connection OK"
     else
         print_color $RED "  └─ Redis connection failed"
@@ -103,12 +103,12 @@ else
 fi
 
 # n8n worker (optional)
-if docker-compose ps | grep -q "n8n-worker"; then
+if docker compose ps | grep -q "n8n-worker"; then
     check_docker_service "n8n-worker" "n8n-worker"
 fi
 
 # n8n webhook (optional)
-if docker-compose ps | grep -q "n8n-webhook"; then
+if docker compose ps | grep -q "n8n-webhook"; then
     if check_docker_service "n8n-webhook" "n8n-webhook"; then
         if check_service "n8n Webhook Service" "http://localhost:5679/healthz" 200; then
             print_color $GREEN "  └─ n8n webhook service OK"
@@ -122,11 +122,11 @@ print_header "Service URLs"
 print_color $BLUE "• n8n Editor: http://localhost:5678"
 print_color $BLUE "• n8n API: http://localhost:5678/api"
 
-if docker-compose ps | grep -q "n8n-webhook"; then
+if docker compose ps | grep -q "n8n-webhook"; then
     print_color $BLUE "• n8n Webhooks: http://localhost:5679"
 fi
 
-if docker-compose ps | grep -q "caddy"; then
+if docker compose ps | grep -q "caddy"; then
     print_color $BLUE "• HTTPS (Caddy): https://localhost"
 fi
 
@@ -138,13 +138,13 @@ docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 print_header "Recent Logs"
 echo "Last 10 log entries from n8n:"
-docker-compose logs --tail=10 n8n | tail -10
+docker compose logs --tail=10 n8n | tail -10
 
 if $services_ok; then
     print_color $GREEN "\n🎉 All core services are healthy!"
     exit 0
 else
     print_color $RED "\n⚠️  Some services have issues. Check the output above."
-    print_color $YELLOW "Try running: docker-compose logs [service-name] for more details"
+    print_color $YELLOW "Try running: docker compose logs [service-name] for more details"
     exit 1
 fi

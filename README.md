@@ -142,7 +142,7 @@ chmod +x scripts/setup.sh
 
 2. **Access n8n**: Open <http://localhost:5678> in your browser
 
-3. **Optional HTTPS**: Enable with `docker-compose --profile https up -d`
+3. **Optional HTTPS**: Enable with `docker compose --profile https up -d`
 
 ## Architecture
 
@@ -240,15 +240,15 @@ openssl rand -hex 32
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 # or: just start
 
 # Check service status
-docker-compose ps
+docker compose ps
 # or: just status
 
 # View logs
-docker-compose logs -f n8n
+docker compose logs -f n8n
 # or: just logs-n8n
 ```
 
@@ -261,7 +261,7 @@ Open your browser and navigate to: <http://localhost:5678>
 ```text
 n8n-self-hosted/
 ├── README.md                 # This file
-├── docker-compose.yml        # Main Docker Compose configuration
+├── docker compose.yml        # Main Docker Compose configuration
 ├── env.template             # Environment variables template
 ├── .env                     # Your environment variables (create from template)
 ├── backups/                 # n8n backups storage
@@ -325,32 +325,32 @@ module.exports = {
 
 ```bash
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Restart a specific service
-docker-compose restart n8n
+docker compose restart n8n
 
 # View logs
-docker-compose logs -f [service-name]
+docker compose logs -f [service-name]
 
 # Scale workers
-docker-compose up -d --scale n8n-worker=3
+docker compose up -d --scale n8n-worker=3
 ```
 
 ### Health Checks
 
 ```bash
 # Check service health
-docker-compose ps
+docker compose ps
 
 # PostgreSQL health
-docker-compose exec postgres pg_isready -U n8n
+docker compose exec postgres pg_isready -U n8n
 
 # Redis health
-docker-compose exec redis redis-cli ping
+docker compose exec redis redis-cli ping
 
 # n8n health
 curl http://localhost:5678/healthz
@@ -387,7 +387,7 @@ WEBHOOK_URL=https://your-domain.com/
 ### 3. Start with HTTPS Profile
 
 ```bash
-docker-compose --profile https up -d
+docker compose --profile https up -d
 ```
 
 ## Monitoring and Logging
@@ -395,7 +395,7 @@ docker-compose --profile https up -d
 ### Log Locations
 
 - **n8n logs**: `./logs/`
-- **Container logs**: `docker-compose logs [service]`
+- **Container logs**: `docker compose logs [service]`
 - **PostgreSQL logs**: Within container at `/var/lib/postgresql/data/log/`
 
 ### Log Levels
@@ -546,7 +546,7 @@ sudo chown -R $USER:$USER ./logs ./backups ./custom-nodes
 # Check container memory usage
 just stats
 
-# Increase memory limits in docker-compose.yml
+# Increase memory limits in docker compose.yml
 ```
 
 ### Debug Mode
@@ -576,7 +576,7 @@ just update
 # Backup first!
 just backup
 
-# Update image version in docker-compose.yml
+# Update image version in docker compose.yml
 # Then restart
 just restart
 ```

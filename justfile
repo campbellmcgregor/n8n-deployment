@@ -83,30 +83,30 @@ restart-https: stop start-https
 # Docker Compose Operations
 # =========================
 
-# Start services using docker-compose up -d
+# Start services using docker compose up -d
 up:
-  @echo "🆙 Starting services with docker-compose..."
-  docker-compose up -d
+  @echo "🆙 Starting services with docker compose..."
+  docker compose up -d
 
 # Start services with HTTPS profile
 up-https:
   @echo "🆙 Starting services with HTTPS profile..."
-  docker-compose --profile https up -d
+  docker compose --profile https up -d
 
 # Start services in development mode
 up-dev:
   @echo "🆙 Starting services in development mode..."
-  docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+  docker compose -f docker compose.yml -f docker compose.dev.yml up -d
 
-# Stop services using docker-compose down
+# Stop services using docker compose down
 down:
-  @echo "⬇️ Stopping services with docker-compose..."
-  docker-compose down
+  @echo "⬇️ Stopping services with docker compose..."
+  docker compose down
 
 # Pull latest Docker images
 pull:
   @echo "⬇️ Pulling latest Docker images..."
-  docker-compose pull
+  docker compose pull
 
 # Monitoring and Logs
 # ===================
@@ -119,32 +119,32 @@ health:
 # Show status of all containers
 status:
   @echo "📊 Container status:"
-  @docker-compose ps
+  @docker compose ps
 
 # Show logs for all services
 logs:
   @echo "📋 Showing logs for all services..."
-  docker-compose logs
+  docker compose logs
 
 # Show logs for n8n main service
 logs-n8n:
   @echo "📋 Showing n8n logs..."
-  docker-compose logs -f n8n
+  docker compose logs -f n8n
 
 # Show logs for PostgreSQL
 logs-db:
   @echo "📋 Showing PostgreSQL logs..."
-  docker-compose logs -f postgres
+  docker compose logs -f postgres
 
 # Show logs for Redis
 logs-redis:
   @echo "📋 Showing Redis logs..."
-  docker-compose logs -f redis
+  docker compose logs -f redis
 
 # Follow logs for all services
 logs-follow:
   @echo "📋 Following logs for all services..."
-  docker-compose logs -f
+  docker compose logs -f
 
 # Show resource usage statistics
 stats:
@@ -208,19 +208,19 @@ test-quick:
 # Connect to PostgreSQL database
 db-connect:
   @echo "🔌 Connecting to PostgreSQL..."
-  docker-compose exec postgres psql -U n8n -d n8n
+  docker compose exec postgres psql -U n8n -d n8n
 
 # Show database size and table info
 db-info:
   @echo "📊 Database information:"
-  @docker-compose exec postgres psql -U n8n -d n8n -c "\l+ n8n"
-  @docker-compose exec postgres psql -U n8n -d n8n -c "\dt+"
+  @docker compose exec postgres psql -U n8n -d n8n -c "\l+ n8n"
+  @docker compose exec postgres psql -U n8n -d n8n -c "\dt+"
 
 # Backup database only
 db-backup:
   @echo "💾 Backing up database..."
   @mkdir -p backups
-  @docker-compose exec -T postgres pg_dump -U n8n n8n > backups/manual-db-backup-$(date +%Y%m%d_%H%M%S).sql
+  @docker compose exec -T postgres pg_dump -U n8n n8n > backups/manual-db-backup-$(date +%Y%m%d_%H%M%S).sql
   @echo "✅ Database backup completed"
 
 # Redis Operations
@@ -229,17 +229,17 @@ db-backup:
 # Connect to Redis CLI
 redis-cli:
   @echo "🔌 Connecting to Redis..."
-  docker-compose exec redis redis-cli
+  docker compose exec redis redis-cli
 
 # Show Redis info
 redis-info:
   @echo "📊 Redis information:"
-  @docker-compose exec redis redis-cli INFO
+  @docker compose exec redis redis-cli INFO
 
 # Flush all Redis data
 redis-flush:
   @echo "🧹 Flushing Redis data..."
-  docker-compose exec redis redis-cli FLUSHALL
+  docker compose exec redis redis-cli FLUSHALL
 
 # Development and Debugging
 # =========================
@@ -247,27 +247,27 @@ redis-flush:
 # Show n8n version
 version:
   @echo "📋 n8n version:"
-  @docker-compose exec n8n n8n --version
+  @docker compose exec n8n n8n --version
 
 # Show container environment variables
 env:
   @echo "🔧 Container environment:"
-  @docker-compose exec n8n env | grep N8N_
+  @docker compose exec n8n env | grep N8N_
 
 # Execute bash shell in n8n container
 shell:
   @echo "🐚 Opening shell in n8n container..."
-  docker-compose exec n8n bash
+  docker compose exec n8n bash
 
 # Execute bash shell in PostgreSQL container
 shell-db:
   @echo "🐚 Opening shell in PostgreSQL container..."
-  docker-compose exec postgres bash
+  docker compose exec postgres bash
 
 # Execute bash shell in Redis container
 shell-redis:
   @echo "🐚 Opening shell in Redis container..."
-  docker-compose exec redis bash
+  docker compose exec redis bash
 
 # Cleanup Operations
 # ==================
@@ -302,13 +302,13 @@ urls:
   @echo "  • n8n API: http://localhost:5678/api"
   @echo "  • PostgreSQL: localhost:5432"
   @echo "  • Redis: localhost:6379"
-  @if docker-compose ps | grep -q "caddy"; then echo "  • HTTPS (Caddy): https://localhost"; fi
+  @if docker compose ps | grep -q "caddy"; then echo "  • HTTPS (Caddy): https://localhost"; fi
 
 # Check if required tools are installed
 check-deps:
   #!/usr/bin/env bash
   echo "🔍 Checking dependencies..."
-  for tool in docker docker-compose openssl curl; do
+  for tool in docker docker compose openssl curl; do
     if command -v $tool >/dev/null 2>&1; then
       echo "✅ $tool is installed"
     else
@@ -327,7 +327,7 @@ reset:
   @echo "🔄 Resetting entire deployment..."
   @echo "⚠️  This will delete ALL data and containers!"
   @read -p "Are you sure? Type 'yes' to confirm: " confirm && [ "$confirm" = "yes" ] || exit 1
-  docker-compose down -v --remove-orphans
+  docker compose down -v --remove-orphans
   docker system prune -f
   @echo "✅ Reset complete. Run 'just setup' to reinitialize."
 

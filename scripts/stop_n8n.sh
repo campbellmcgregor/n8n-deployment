@@ -45,19 +45,19 @@ check_docker() {
 
 # Check if services are running
 check_running_services() {
-    if ! docker-compose ps | grep -q "Up"; then
+    if ! docker compose ps | grep -q "Up"; then
         print_warning "No n8n services appear to be running."
         echo ""
         print_color $YELLOW "Current status:"
-        docker-compose ps
+        docker compose ps
         echo ""
-        if docker-compose ps | grep -q "Exit"; then
+        if docker compose ps | grep -q "Exit"; then
             print_color $YELLOW "Found stopped containers. Would you like to remove them?"
             read -p "Remove stopped containers? (y/N): " -n 1 -r
             echo ""
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 print_step "Removing stopped containers..."
-                docker-compose down
+                docker compose down
                 print_step "Cleanup completed!"
             fi
         else
@@ -150,7 +150,7 @@ main() {
     # Show current status
     echo ""
     print_color $YELLOW "Current service status:"
-    docker-compose ps
+    docker compose ps
     echo ""
 
     # Confirm destructive actions
@@ -169,11 +169,11 @@ main() {
     # Stop services
     print_step "Stopping n8n services..."
     if [ "$REMOVE_VOLUMES" = true ]; then
-        docker-compose down -v
+        docker compose down -v
         print_step "Services stopped and volumes removed!"
         print_color $RED "All n8n data has been permanently deleted."
     else
-        docker-compose down
+        docker compose down
         print_step "Services stopped!"
     fi
 
@@ -201,9 +201,9 @@ main() {
     echo ""
     print_header "Final Status"
 
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_warning "Some services are still running:"
-        docker-compose ps
+        docker compose ps
     else
         print_step "All n8n services have been stopped."
     fi
@@ -224,7 +224,7 @@ main() {
     echo ""
     print_color $BLUE "Other useful commands:"
     print_color $BLUE "  • Health check: ./scripts/health-check.sh"
-    print_color $BLUE "  • View logs: docker-compose logs"
+    print_color $BLUE "  • View logs: docker compose logs"
     print_color $BLUE "  • Complete setup: ./scripts/setup.sh"
 }
 

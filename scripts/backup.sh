@@ -15,11 +15,11 @@ mkdir -p "$BACKUP_DIR"
 
 # Backup n8n workflows and credentials
 echo "Backing up n8n workflows and credentials..."
-docker-compose exec -T n8n n8n export:workflow --backup --output="/home/node/.n8n/backups/n8n-backup-$DATE.tar.gz"
+docker compose exec -T n8n n8n export:workflow --backup --output="/home/node/.n8n/backups/n8n-backup-$DATE.tar.gz"
 
 # Backup database
 echo "Backing up PostgreSQL database..."
-docker-compose exec -T postgres pg_dump -U n8n n8n > "$BACKUP_DIR/postgres-backup-$DATE.sql"
+docker compose exec -T postgres pg_dump -U n8n n8n > "$BACKUP_DIR/postgres-backup-$DATE.sql"
 
 # Compress database backup
 gzip "$BACKUP_DIR/postgres-backup-$DATE.sql"

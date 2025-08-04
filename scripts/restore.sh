@@ -130,7 +130,7 @@ validate_backup() {
 
 # Check if services are running
 check_services() {
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_warning "n8n services are currently running."
         return 0
     fi
@@ -141,7 +141,7 @@ check_services() {
 stop_services() {
     if check_services; then
         print_step "Stopping n8n services for restoration..."
-        docker-compose down
+        docker compose down
         sleep 3
     fi
 }
@@ -149,10 +149,10 @@ stop_services() {
 # Start services
 start_services() {
     print_step "Starting n8n services..."
-    docker-compose up -d
+    docker compose up -d
     sleep 10
 
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_step "Services started successfully!"
     else
         print_warning "Some services may still be starting up."
@@ -167,15 +167,15 @@ restore_database() {
     print_step "Restoring PostgreSQL database..."
 
     # Start only postgres and redis (needed for n8n to connect later)
-    docker-compose up -d postgres redis
+    docker compose up -d postgres redis
     sleep 5
 
     # Drop and recreate database
-    docker-compose exec -T postgres psql -U n8n -d postgres -c "DROP DATABASE IF EXISTS n8n;"
-    docker-compose exec -T postgres psql -U n8n -d postgres -c "CREATE DATABASE n8n;"
+    docker compose exec -T postgres psql -U n8n -d postgres -c "DROP DATABASE IF EXISTS n8n;"
+    docker compose exec -T postgres psql -U n8n -d postgres -c "CREATE DATABASE n8n;"
 
     # Restore database
-    gunzip -c "$db_backup" | docker-compose exec -T postgres psql -U n8n -d n8n
+    gunzip -c "$db_backup" | docker compose exec -T postgres psql -U n8n -d n8n
 
     print_step "Database restored successfully"
 }
@@ -188,15 +188,15 @@ restore_workflows() {
     print_step "Restoring n8n workflows and credentials..."
 
     # Start n8n service to access the import functionality
-    docker-compose up -d n8n
+    docker compose up -d n8n
     sleep 10
 
     # Copy backup file to container and restore
     docker cp "$n8n_backup" n8n-main:/tmp/restore-backup.tar.gz
-    docker-compose exec -T n8n n8n import:workflow --input="/tmp/restore-backup.tar.gz"
+    docker compose exec -T n8n n8n import:workflow --input="/tmp/restore-backup.tar.gz"
 
     # Clean up
-    docker-compose exec -T n8n rm -f /tmp/restore-backup.tar.gz
+    docker compose exec -T n8n rm -f /tmp/restore-backup.tar.gz
 
     print_step "Workflows and credentials restored successfully"
 }

@@ -55,7 +55,7 @@ check_prerequisites() {
     fi
     print_step "Docker is installed"
 
-    if ! command_exists docker-compose; then
+    if ! command_exists docker compose; then
         print_error "Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
@@ -130,19 +130,19 @@ start_services() {
     print_header "Starting Services"
 
     print_step "Pulling Docker images..."
-    docker-compose pull
+    docker compose pull
 
     print_step "Starting services in detached mode..."
-    docker-compose up -d
+    docker compose up -d
 
     print_step "Waiting for services to be ready..."
     sleep 10
 
     # Check service health
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_step "Services are running!"
     else
-        print_warning "Some services might still be starting up. Check with: docker-compose ps"
+        print_warning "Some services might still be starting up. Check with: docker compose ps"
     fi
 }
 
@@ -160,8 +160,8 @@ show_access_info() {
     print_color $BLUE "  • Redis: localhost:6379"
     echo ""
     print_color $YELLOW "Useful commands:"
-    print_color $YELLOW "  • View logs: docker-compose logs -f n8n"
-    print_color $YELLOW "  • Stop services: docker-compose down"
+    print_color $YELLOW "  • View logs: docker compose logs -f n8n"
+    print_color $YELLOW "  • Stop services: docker compose down"
     print_color $YELLOW "  • Backup data: ./scripts/backup.sh"
     echo ""
     print_color $GREEN "Happy automating! 🚀"
@@ -183,7 +183,7 @@ main() {
         start_services
         show_access_info
     else
-        print_color $YELLOW "Setup completed! Run 'docker-compose up -d' when you're ready to start."
+        print_color $YELLOW "Setup completed! Run 'docker compose up -d' when you're ready to start."
     fi
 }
 

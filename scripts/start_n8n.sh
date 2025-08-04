@@ -54,17 +54,17 @@ check_environment() {
 
 # Check if services are already running
 check_running_services() {
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_warning "Some n8n services are already running."
         echo ""
         print_color $YELLOW "Current status:"
-        docker-compose ps
+        docker compose ps
         echo ""
         read -p "Do you want to restart the services? (y/N): " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_step "Stopping existing services..."
-            docker-compose down
+            docker compose down
         else
             print_color $BLUE "Services are already running. Access n8n at: http://localhost:5678"
             exit 0
@@ -121,10 +121,10 @@ main() {
     check_running_services
 
     # Determine compose command
-    COMPOSE_CMD="docker-compose"
+    COMPOSE_CMD="docker compose"
 
     if [ "$DEV_MODE" = true ]; then
-        COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.yml -f docker-compose.dev.yml"
+        COMPOSE_CMD="$COMPOSE_CMD -f docker compose.yml -f docker compose.dev.yml"
         print_step "Development mode enabled"
     fi
 
@@ -147,7 +147,7 @@ main() {
 
     # Check service health
     print_step "Checking service status..."
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_step "Services started successfully!"
     else
         print_warning "Some services might still be starting up."
@@ -156,7 +156,7 @@ main() {
     # Show status and access information
     echo ""
     print_header "Service Status"
-    docker-compose ps
+    docker compose ps
 
     echo ""
     print_header "Access Information"
@@ -182,7 +182,7 @@ main() {
     print_color $BLUE "  • Redis: localhost:6379"
     echo ""
     print_color $YELLOW "Useful commands:"
-    print_color $YELLOW "  • View logs: docker-compose logs -f n8n"
+    print_color $YELLOW "  • View logs: docker compose logs -f n8n"
     print_color $YELLOW "  • Stop services: ./scripts/stop_n8n.sh"
     print_color $YELLOW "  • Health check: ./scripts/health-check.sh"
     print_color $YELLOW "  • Backup data: ./scripts/backup.sh"
