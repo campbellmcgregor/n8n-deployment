@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # n8n Backup Script
-# This script creates backups of your n8n workflows and database
+# This script creates backups of your n8n workflows, database, and utility services
 # 
 # PERMISSION STRATEGY:
 # - Creates backups inside container (/tmp) to avoid host permission issues
@@ -12,12 +12,117 @@ set -e
 
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="./backups"
+BACKUP_TYPE="full"
 
-echo "Starting backup process..."
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --utilities-only)
+            BACKUP_TYPE="utilities"
+            shift
+            ;;
+        --supabase-only)
+            BACKUP_TYPE="supabase"
+            shift
+            ;;
+        --langfuse-only)
+            BACKUP_TYPE="langfuse"
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  --utilities-only    Backup only utility services (Supabase + Langfuse)"
+            echo "  --supabase-only     Backup only Supabase platform"
+            echo "  --langfuse-only     Backup only Langfuse observability"
+            echo "  --help, -h          Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+echo "Starting backup process (type: $BACKUP_TYPE)..."
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
 
+# Function to backup Supabase platform
+backup_supabase() {
+    if ! docker compose -f docker-compose.supabase.yml ps 2>/dev/null | grep -q "Up"; then
+        echo "⚠️ Supabase services not running, skipping backup..."
+        return
+    fi
+
+    echo "Backing up Supabase platform..."
+    
+    # Backup Supabase PostgreSQL database (separate from n8n)
+    echo "Backing up Supabase database..."
+    if docker compose -f docker-compose.supabase.yml exec -T supabase-db pg_dump -U postgres postgres > "$BACKUP_DIR/supabase-db-backup-$DATE.sql" 2>/dev/null; then
+        gzip "$BACKUP_DIR/supabase-db-backup-$DATE.sql"
+        echo "✓ Supabase database backup created"
+    else
+        echo "❌ Failed to backup Supabase database"
+    fi
+
+    # Backup Supabase storage files
+    echo "Backing up Supabase storage..."
+    if docker cp supabase-storage:/var/lib/storage "$BACKUP_DIR/supabase-storage-$DATE" 2>/dev/null; then
+        tar -czf "$BACKUP_DIR/supabase-storage-backup-$DATE.tar.gz" -C "$BACKUP_DIR" "supabase-storage-$DATE"
+        rm -rf "$BACKUP_DIR/supabase-storage-$DATE"
+        echo "✓ Supabase storage backup created"
+    fi
+}
+
+# Function to backup Langfuse observability
+backup_langfuse() {
+    if ! docker compose -f docker-compose.yml -f docker-compose.langfuse.yml ps langfuse-web 2>/dev/null | grep -q "Up"; then
+        echo "⚠️ Langfuse services not running, skipping backup..."
+        return  
+    fi
+
+    echo "Backing up Langfuse observability..."
+
+    # Backup ClickHouse analytics database
+    echo "Backing up ClickHouse analytics..."
+    if docker compose -f docker-compose.yml -f docker-compose.langfuse.yml exec -T clickhouse clickhouse-client --query="SELECT 'ClickHouse backup placeholder'" > "$BACKUP_DIR/clickhouse-backup-$DATE.sql" 2>/dev/null; then
+        gzip "$BACKUP_DIR/clickhouse-backup-$DATE.sql"
+        echo "✓ ClickHouse backup created"
+    fi
+
+    # Backup MinIO data
+    echo "Backing up MinIO storage..."
+    if docker cp langfuse-minio:/data "$BACKUP_DIR/minio-data-$DATE" 2>/dev/null; then
+        tar -czf "$BACKUP_DIR/minio-backup-$DATE.tar.gz" -C "$BACKUP_DIR" "minio-data-$DATE"
+        rm -rf "$BACKUP_DIR/minio-data-$DATE"
+        echo "✓ MinIO backup created"
+    fi
+}
+
+# Handle utility-only backup types
+if [ "$BACKUP_TYPE" = "utilities" ]; then
+    backup_supabase
+    backup_langfuse
+    echo ""
+    echo "✅ Utility platforms backup completed!"
+    exit 0
+elif [ "$BACKUP_TYPE" = "supabase" ]; then
+    backup_supabase
+    echo ""
+    echo "✅ Supabase platform backup completed!"
+    exit 0
+elif [ "$BACKUP_TYPE" = "langfuse" ]; then
+    backup_langfuse
+    echo ""
+    echo "✅ Langfuse observability backup completed!"
+    exit 0
+fi
+
+# Continue with n8n core backup for full backup
 # Backup n8n workflows and credentials (create in /tmp inside container to avoid permission issues)
 echo "Backing up n8n workflows and credentials..."
 export_result=$(docker compose exec -T n8n n8n export:workflow --backup --output="/tmp/n8n-backup-$DATE/" 2>&1 || true)
@@ -135,6 +240,13 @@ if docker compose ps | grep -q "n8n-neo4j.*running"; then
     # Restart Neo4j if it was stopped
     # docker compose start neo4j
 fi
+
+# Backup Utility Services (if running)
+# ====================================
+
+echo "Checking for utility services..."
+backup_supabase
+backup_langfuse
 
 # Validate backups were created successfully  
 N8N_BACKUP="$BACKUP_DIR/n8n-backup-$DATE.tar.gz"

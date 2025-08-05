@@ -214,6 +214,36 @@ restore-ai-services DATE:
   @echo "🔄 Restoring AI services from {{DATE}}..."
   ./scripts/restore.sh --ai-services-only {{DATE}}
 
+# Backup utility platforms only
+backup-utilities:
+  @echo "💾 Backing up utility platforms..."
+  ./scripts/backup.sh --utilities-only
+
+# Backup Supabase platform only
+backup-supabase:
+  @echo "💾 Backing up Supabase platform..."
+  ./scripts/backup.sh --supabase-only
+
+# Backup Langfuse observability only
+backup-langfuse:
+  @echo "💾 Backing up Langfuse observability..."
+  ./scripts/backup.sh --langfuse-only
+
+# Restore utility platforms from backup
+restore-utilities DATE:
+  @echo "🔄 Restoring utility platforms from {{DATE}}..."
+  ./scripts/restore.sh --utilities-only {{DATE}}
+
+# Restore Supabase platform from backup
+restore-supabase DATE:
+  @echo "🔄 Restoring Supabase platform from {{DATE}}..."
+  ./scripts/restore.sh --supabase-only {{DATE}}
+
+# Restore Langfuse observability from backup
+restore-langfuse DATE:
+  @echo "🔄 Restoring Langfuse observability from {{DATE}}..."
+  ./scripts/restore.sh --langfuse-only {{DATE}}
+
 # Force restore without confirmation
 restore-force DATE:
   @echo "🔄 Force restoring backup from {{DATE}}..."
@@ -291,6 +321,116 @@ qdrant-ui:
   @echo "  Qdrant API: http://localhost:6333"
   @echo "  Collections: http://localhost:6333/collections"
 
+# Utility Platform Operations  
+# ============================
+
+# Start Supabase database platform
+start-supabase:
+  @echo "🚀 Starting Supabase platform (minimal)..."
+  docker compose -f docker-compose.yml -f docker-compose.supabase-minimal.yml up -d
+
+# Stop Supabase platform
+stop-supabase:
+  @echo "🛑 Stopping Supabase platform..."
+  docker compose -f docker-compose.supabase-minimal.yml down
+
+# Restart Supabase platform
+restart-supabase: stop-supabase start-supabase
+
+# Start Langfuse observability
+start-langfuse:
+  @echo "🚀 Starting Langfuse observability..."
+  docker compose -f docker-compose.yml -f docker-compose.langfuse.yml up -d
+
+# Stop Langfuse observability
+stop-langfuse:
+  @echo "🛑 Stopping Langfuse observability..."
+  docker compose -f docker-compose.langfuse.yml down
+
+# Restart Langfuse observability
+restart-langfuse: stop-langfuse start-langfuse
+
+# Start both utility platforms
+start-utilities:
+  @echo "🚀 Starting utility platforms (Supabase + Langfuse)..."
+  docker compose -f docker-compose.yml -f docker-compose.supabase.yml -f docker-compose.langfuse.yml up -d
+
+# Stop both utility platforms
+stop-utilities:
+  @echo "🛑 Stopping utility platforms..."
+  docker compose -f docker-compose.supabase.yml down
+  docker compose -f docker-compose.langfuse.yml down
+
+# Restart both utility platforms
+restart-utilities: stop-utilities start-utilities
+
+# Show utility service status
+status-utilities:
+  @echo "📊 Utility Platform Status:"
+  @echo ""
+  @echo "Supabase Services:"
+  @docker compose -f docker-compose.supabase-minimal.yml ps 2>/dev/null || echo "  No Supabase services running"
+  @echo ""
+  @echo "Langfuse Services:"
+  @docker compose -f docker-compose.yml -f docker-compose.langfuse.yml ps langfuse-web langfuse-worker clickhouse minio 2>/dev/null || echo "  No Langfuse services running"
+
+# View Supabase logs
+logs-supabase:
+  @echo "📋 Showing Supabase platform logs..."
+  docker compose -f docker-compose.supabase-minimal.yml logs -f
+
+# View Langfuse logs
+logs-langfuse:
+  @echo "📋 Showing Langfuse observability logs..."
+  docker compose -f docker-compose.langfuse.yml logs -f
+
+# Open Supabase Studio
+supabase-studio:
+  @echo "🌐 Opening Supabase Studio..."
+  @echo "  Supabase Studio: http://localhost:3000"
+  @echo "  Supabase API: http://localhost:8000"
+
+# Connect to Supabase PostgreSQL
+supabase-db:
+  @echo "🔌 Connecting to Supabase PostgreSQL..."
+  docker compose -f docker-compose.supabase-minimal.yml exec supabase-db psql -U postgres
+
+# Open Langfuse dashboard
+langfuse-ui:
+  @echo "🌐 Opening Langfuse dashboard..."
+  @echo "  Langfuse Dashboard: http://localhost:3002"
+
+# Connect to ClickHouse client
+clickhouse-client:
+  @echo "🔌 Connecting to ClickHouse..."
+  docker compose -f docker-compose.yml -f docker-compose.langfuse.yml exec clickhouse clickhouse-client
+
+# Open MinIO console
+minio-console:
+  @echo "🌐 Opening MinIO console..."
+  @echo "  MinIO Console: http://localhost:9001"
+  @echo "  MinIO API: http://localhost:9000"
+
+# View Supabase auth service logs
+supabase-logs-auth:
+  @echo "📋 Showing Supabase auth logs..."
+  docker compose -f docker-compose.supabase.yml logs -f supabase-auth
+
+# View Supabase API logs
+supabase-logs-api:
+  @echo "📋 Showing Supabase API logs..."
+  docker compose -f docker-compose.supabase.yml logs -f supabase-kong
+
+# View Langfuse web service logs
+langfuse-logs-web:
+  @echo "📋 Showing Langfuse web logs..."
+  docker compose -f docker-compose.langfuse.yml logs -f langfuse-web
+
+# View Langfuse worker logs
+langfuse-logs-worker:
+  @echo "📋 Showing Langfuse worker logs..."
+  docker compose -f docker-compose.langfuse.yml logs -f langfuse-worker
+
 # Show Redis info
 redis-info:
   @echo "📊 Redis information:"
@@ -355,19 +495,32 @@ clean-all:
 # Utility Commands
 # ================
 
-# Show all n8n URLs
+# Show all service URLs
 urls:
-  @echo "🌐 n8n Service URLs:"
+  @echo "🌐 Core Services:"
   @echo "  • n8n Editor: http://localhost:5678"
   @echo "  • n8n API: http://localhost:5678/api"
   @echo "  • PostgreSQL: localhost:5432"
   @echo "  • Redis: localhost:6379"
   @echo ""
-  @echo "🤖 AI Service URLs:"
+  @echo "🤖 AI Services:"
   @echo "  • Flowise: http://localhost:3001"
   @echo "  • Neo4j Browser: http://localhost:7474"
   @echo "  • Qdrant API: http://localhost:6333"
-  @if docker compose ps | grep -q "caddy"; then echo "  • HTTPS (Caddy): https://localhost"; fi
+  @echo ""
+  @echo "🗄️ Database Platform:"
+  @if docker compose -f docker-compose.supabase.yml ps 2>/dev/null | grep -q "Up"; then echo "  • Supabase Studio: http://localhost:3000"; echo "  • Supabase API: http://localhost:8000"; else echo "  • Supabase: Not running"; fi
+  @echo ""
+  @echo "📊 LLM Observability:"
+  @if docker compose -f docker-compose.langfuse.yml ps 2>/dev/null | grep -q "Up"; then echo "  • Langfuse Dashboard: http://localhost:3002"; echo "  • ClickHouse: http://localhost:8123"; echo "  • MinIO Console: http://localhost:9001"; else echo "  • Langfuse: Not running"; fi
+
+# Show utility service URLs only
+urls-utilities:
+  @echo "🗄️ Database Platform:"
+  @if docker compose -f docker-compose.supabase.yml ps 2>/dev/null | grep -q "Up"; then echo "  • Supabase Studio: http://localhost:3000"; echo "  • Supabase API: http://localhost:8000"; else echo "  • Supabase: Not running"; fi
+  @echo ""
+  @echo "📊 LLM Observability:"
+  @if docker compose -f docker-compose.langfuse.yml ps 2>/dev/null | grep -q "Up"; then echo "  • Langfuse Dashboard: http://localhost:3002"; echo "  • ClickHouse: http://localhost:8123"; echo "  • MinIO Console: http://localhost:9001"; else echo "  • Langfuse: Not running"; fi
 
 # Check if required tools are installed
 check-deps:
@@ -399,25 +552,89 @@ reset:
 # Show detailed help for specific operations
 help-start:
   @echo "🚀 Start Commands:"
-  @echo "  just start          - Start n8n normally"
-  @echo "  just start-https    - Start with HTTPS support"
-  @echo "  just start-dev      - Start in development mode"
-  @echo "  just start-https-dev - Start with HTTPS + dev mode"
+  @echo "  just start              - Start core n8n services"
+  @echo "  just start-https        - Start with HTTPS support"
+  @echo "  just start-dev          - Start in development mode"
+  @echo "  just start-supabase     - Start Supabase database platform"
+  @echo "  just start-langfuse     - Start Langfuse LLM observability"
+  @echo "  just start-utilities    - Start both utility platforms"
 
 help-stop:
   @echo "🛑 Stop Commands:"
-  @echo "  just stop           - Stop services gracefully"
-  @echo "  just stop-force     - Force stop without confirmation"
-  @echo "  just stop-clean     - Stop and remove all data (⚠️ DESTRUCTIVE!)"
-  @echo "  just stop-volumes   - Stop and remove volumes (⚠️ DESTRUCTIVE!)"
-  @echo "  just stop-images    - Stop and remove Docker images"
+  @echo "  just stop               - Stop core services gracefully"
+  @echo "  just stop-force         - Force stop without confirmation"
+  @echo "  just stop-supabase      - Stop Supabase platform"
+  @echo "  just stop-langfuse      - Stop Langfuse observability"
+  @echo "  just stop-utilities     - Stop both utility platforms"
+  @echo "  just stop-clean         - Stop and remove all data (⚠️ DESTRUCTIVE!)"
 
 help-backup:
   @echo "💾 Backup & Restore Commands:"
-  @echo "  just backup                    - Create backup"
-  @echo "  just backup-list               - List available backups"
-  @echo "  just restore                   - Interactive restore"
-  @echo "  just restore-date DATE         - Restore specific backup"
-  @echo "  just restore-workflows DATE    - Restore only workflows"
-  @echo "  just restore-database DATE     - Restore only database"
-  @echo "  just restore-force DATE        - Force restore without confirmation" 
+  @echo "  just backup                     - Create backup of all services"
+  @echo "  just backup-utilities           - Backup utility platforms only"
+  @echo "  just backup-supabase            - Backup Supabase platform only"
+  @echo "  just backup-langfuse            - Backup Langfuse observability only"
+  @echo "  just restore DATE               - Interactive restore"
+  @echo "  just restore-utilities DATE     - Restore utility platforms"
+  @echo "  just restore-supabase DATE      - Restore Supabase platform"
+  @echo "  just restore-langfuse DATE      - Restore Langfuse observability"
+
+help-utilities:
+  @echo "🔧 Utility Platform Commands:"
+  @echo ""
+  @echo "Database Platform (Supabase):"
+  @echo "  just start-supabase             - Start Supabase platform"
+  @echo "  just supabase-studio            - Open Supabase Studio UI"
+  @echo "  just supabase-db                - Connect to Supabase PostgreSQL"
+  @echo "  just logs-supabase              - View Supabase platform logs"
+  @echo "  just supabase-logs-auth         - View authentication service logs"
+  @echo "  just supabase-logs-api          - View API gateway logs"
+  @echo ""
+  @echo "LLM Observability (Langfuse):"
+  @echo "  just start-langfuse             - Start Langfuse observability"
+  @echo "  just langfuse-ui                - Open Langfuse dashboard"
+  @echo "  just clickhouse-client          - Connect to ClickHouse analytics"
+  @echo "  just minio-console              - Open MinIO storage console"
+  @echo "  just logs-langfuse              - View Langfuse platform logs"
+  @echo "  just langfuse-logs-web          - View Langfuse web service logs"
+  @echo "  just langfuse-logs-worker       - View Langfuse worker logs"
+
+help-supabase:
+  @echo "🗄️ Supabase Database Platform:"
+  @echo "  just start-supabase             - Start complete Supabase platform"
+  @echo "  just stop-supabase              - Stop Supabase services"
+  @echo "  just restart-supabase           - Restart Supabase platform"
+  @echo "  just supabase-studio            - Open Supabase Studio (http://localhost:3000)"
+  @echo "  just supabase-db                - Connect to Supabase PostgreSQL"
+  @echo "  just logs-supabase              - View all Supabase logs"
+  @echo "  just supabase-logs-auth         - View authentication service logs"
+  @echo "  just supabase-logs-api          - View API gateway logs"
+  @echo "  just backup-supabase            - Backup Supabase platform"
+  @echo "  just restore-supabase DATE      - Restore Supabase from backup"
+
+help-langfuse:
+  @echo "📊 Langfuse LLM Observability:"
+  @echo "  just start-langfuse             - Start Langfuse observability stack"
+  @echo "  just stop-langfuse              - Stop Langfuse services"
+  @echo "  just restart-langfuse           - Restart Langfuse platform"
+  @echo "  just langfuse-ui                - Open Langfuse dashboard (http://localhost:3002)"
+  @echo "  just clickhouse-client          - Connect to ClickHouse analytics DB"
+  @echo "  just minio-console              - Open MinIO console (http://localhost:9001)"
+  @echo "  just logs-langfuse              - View all Langfuse logs"
+  @echo "  just langfuse-logs-web          - View Langfuse web service logs"
+  @echo "  just langfuse-logs-worker       - View Langfuse worker logs"
+  @echo "  just backup-langfuse            - Backup Langfuse observability"
+  @echo "  just restore-langfuse DATE      - Restore Langfuse from backup"
+
+help-backup-utils:
+  @echo "💾 Utility Backup & Restore:"
+  @echo "  just backup-utilities           - Backup both Supabase + Langfuse"
+  @echo "  just backup-supabase            - Backup Supabase platform only"
+  @echo "  just backup-langfuse            - Backup Langfuse observability only"
+  @echo "  just restore-utilities DATE     - Restore both platforms"
+  @echo "  just restore-supabase DATE      - Restore Supabase platform"
+  @echo "  just restore-langfuse DATE      - Restore Langfuse observability"
+  @echo ""
+  @echo "Examples:"
+  @echo "  just backup-utilities           # Backup both platforms"
+  @echo "  just restore-supabase 20250805_120000  # Restore specific Supabase backup" 
