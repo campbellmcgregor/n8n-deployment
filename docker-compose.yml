@@ -2,6 +2,12 @@ volumes:
   n8n_storage:
   postgres_storage:
   redis_storage:
+  qdrant_storage:
+  flowise_storage:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:
 
 networks:
   n8n-network:
@@ -141,3 +147,72 @@ services:
       - https
     depends_on:
       - n8n
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: n8n-qdrant
+    hostname: qdrant
+    networks:
+      - n8n-network
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__LOG_LEVEL=${QDRANT_LOG_LEVEL:-INFO}
+
+  # Flowise AI Agent Builder
+  flowise:
+    image: flowiseai/flowise:latest
+    container_name: n8n-flowise
+    hostname: flowise
+    networks:
+      - n8n-network
+    restart: unless-stopped
+    ports:
+      - "${FLOWISE_PORT:-3001}:3001"
+    environment:
+      - PORT=3001
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+      - DATABASE_PATH=/root/.flowise
+      - APIKEY_PATH=/root/.flowise
+      - SECRETKEY_PATH=/root/.flowise
+      - LOG_PATH=/root/.flowise/logs
+    volumes:
+      - flowise_storage:/root/.flowise
+      - ./shared:/data/shared
+    depends_on:
+      - postgres
+      - qdrant
+
+  # Neo4j Graph Database
+  neo4j:
+    image: neo4j:5-community
+    container_name: n8n-neo4j
+    hostname: neo4j
+    networks:
+      - n8n-network
+    restart: unless-stopped
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_HTTPS_PORT:-7473}:7473"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+    environment:
+      - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/password}
+      - NEO4J_server_memory_pagecache_size=${NEO4J_PAGECACHE_SIZE:-512M}
+      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL:-512M}
+      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX:-1G}
+      - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*,gds.*

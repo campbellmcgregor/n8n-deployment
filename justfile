@@ -141,6 +141,21 @@ logs-redis:
   @echo "📋 Showing Redis logs..."
   docker compose logs -f redis
 
+# Show logs for Qdrant
+logs-qdrant:
+  @echo "📋 Showing Qdrant logs..."
+  docker compose logs -f qdrant
+
+# Show logs for Flowise
+logs-flowise:
+  @echo "📋 Showing Flowise logs..."
+  docker compose logs -f flowise
+
+# Show logs for Neo4j
+logs-neo4j:
+  @echo "📋 Showing Neo4j logs..."
+  docker compose logs -f neo4j
+
 # Follow logs for all services
 logs-follow:
   @echo "📋 Following logs for all services..."
@@ -194,6 +209,11 @@ restore-database DATE:
   @echo "🔄 Restoring database from {{DATE}}..."
   ./scripts/restore.sh --database-only {{DATE}}
 
+# Restore only AI services from backup
+restore-ai-services DATE:
+  @echo "🔄 Restoring AI services from {{DATE}}..."
+  ./scripts/restore.sh --ai-services-only {{DATE}}
+
 # Force restore without confirmation
 restore-force DATE:
   @echo "🔄 Force restoring backup from {{DATE}}..."
@@ -240,6 +260,36 @@ db-backup:
 redis-cli:
   @echo "🔌 Connecting to Redis..."
   docker compose exec redis redis-cli
+
+# AI Services Operations
+# ======================
+
+# Open Neo4j Browser
+neo4j-browser:
+  @echo "🌐 Opening Neo4j Browser..."
+  @echo "  Neo4j Browser: http://localhost:7474"
+  @echo "  Bolt URL: bolt://localhost:7687"
+
+# Connect to Neo4j via Cypher Shell
+neo4j-shell:
+  @echo "🔌 Connecting to Neo4j Cypher Shell..."
+  docker compose exec neo4j cypher-shell
+
+# Open Flowise UI
+flowise-ui:
+  @echo "🌐 Opening Flowise UI..."
+  @echo "  Flowise UI: http://localhost:3001"
+
+# Check Qdrant status
+qdrant-status:
+  @echo "📊 Qdrant cluster status:"
+  @curl -s http://localhost:6333/cluster || echo "Qdrant not accessible"
+
+# Open Qdrant dashboard
+qdrant-ui:
+  @echo "🌐 Qdrant Dashboard..."
+  @echo "  Qdrant API: http://localhost:6333"
+  @echo "  Collections: http://localhost:6333/collections"
 
 # Show Redis info
 redis-info:
@@ -312,6 +362,11 @@ urls:
   @echo "  • n8n API: http://localhost:5678/api"
   @echo "  • PostgreSQL: localhost:5432"
   @echo "  • Redis: localhost:6379"
+  @echo ""
+  @echo "🤖 AI Service URLs:"
+  @echo "  • Flowise: http://localhost:3001"
+  @echo "  • Neo4j Browser: http://localhost:7474"
+  @echo "  • Qdrant API: http://localhost:6333"
   @if docker compose ps | grep -q "caddy"; then echo "  • HTTPS (Caddy): https://localhost"; fi
 
 # Check if required tools are installed

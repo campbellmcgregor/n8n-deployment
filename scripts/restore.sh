@@ -50,6 +50,7 @@ show_usage() {
     echo "Options:"
     echo "  --workflows-only    Restore only workflows and credentials"
     echo "  --database-only     Restore only the PostgreSQL database"
+    echo "  --ai-services-only  Restore only AI services (Qdrant, Flowise, Neo4j)"
     echo "  --list             List available backups"
     echo "  --force            Force restore without confirmation"
     echo "  --help             Show this help message"
@@ -201,6 +202,100 @@ restore_workflows() {
     print_step "Workflows and credentials restored successfully"
 }
 
+# Restore Qdrant vector database
+restore_qdrant() {
+    local date_part="$1"
+    local backup_file="$BACKUP_DIR/qdrant-backup-$date_part.tar.gz"
+    
+    if [ ! -f "$backup_file" ]; then
+        print_warning "Qdrant backup not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Qdrant vector database..."
+    
+    # Extract backup
+    tar -xzf "$backup_file" -C "$BACKUP_DIR"
+    
+    # Stop Qdrant to restore data
+    docker compose stop qdrant 2>/dev/null || true
+    
+    # Clear existing Qdrant data
+    docker compose exec -T qdrant rm -rf /qdrant/storage/snapshots 2>/dev/null || true
+    
+    # Copy snapshots to container
+    docker cp "$BACKUP_DIR/qdrant-snapshots-$date_part" n8n-qdrant:/qdrant/storage/snapshots 2>/dev/null || true
+    
+    # Start Qdrant
+    docker compose start qdrant 2>/dev/null || true
+    
+    # Clean up extracted files
+    rm -rf "$BACKUP_DIR/qdrant-snapshots-$date_part"
+    
+    print_step "Qdrant database restored successfully"
+}
+
+# Restore Flowise data
+restore_flowise() {
+    local date_part="$1"
+    local backup_file="$BACKUP_DIR/flowise-backup-$date_part.tar.gz"
+    
+    if [ ! -f "$backup_file" ]; then
+        print_warning "Flowise backup not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Flowise data..."
+    
+    # Copy backup to container
+    docker cp "$backup_file" n8n-flowise:/tmp/flowise-restore.tar.gz 2>/dev/null || true
+    
+    # Stop Flowise
+    docker compose stop flowise 2>/dev/null || true
+    
+    # Clear existing data and restore
+    docker compose exec -T flowise bash -c "rm -rf /root/.flowise && tar -xzf /tmp/flowise-restore.tar.gz -C /root/ && rm /tmp/flowise-restore.tar.gz" 2>/dev/null || true
+    
+    # Start Flowise
+    docker compose start flowise 2>/dev/null || true
+    
+    print_step "Flowise data restored successfully"
+}
+
+# Restore Neo4j graph database
+restore_neo4j() {
+    local date_part="$1"
+    local backup_file="$BACKUP_DIR/neo4j-backup-$date_part.dump.gz"
+    
+    if [ ! -f "$backup_file" ]; then
+        print_warning "Neo4j backup not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Neo4j database..."
+    
+    # Decompress backup
+    gunzip -c "$backup_file" > "$BACKUP_DIR/neo4j-restore.dump"
+    
+    # Copy dump to container
+    docker cp "$BACKUP_DIR/neo4j-restore.dump" n8n-neo4j:/tmp/neo4j-restore.dump 2>/dev/null || true
+    
+    # Stop Neo4j
+    docker compose stop neo4j 2>/dev/null || true
+    
+    # Restore database
+    docker compose exec -T neo4j neo4j-admin database load neo4j --from-path=/tmp --overwrite-destination=true 2>/dev/null || true
+    
+    # Clean up temp files
+    docker compose exec -T neo4j rm -f /tmp/neo4j-restore.dump 2>/dev/null || true
+    rm -f "$BACKUP_DIR/neo4j-restore.dump"
+    
+    # Start Neo4j
+    docker compose start neo4j 2>/dev/null || true
+    
+    print_step "Neo4j database restored successfully"
+}
+
 # Main restore function
 perform_restore() {
     local date_part="$1"
@@ -234,12 +329,21 @@ perform_restore() {
     "full")
         restore_database "$date_part"
         restore_workflows "$date_part"
+        # Restore AI services if available
+        restore_qdrant "$date_part"
+        restore_flowise "$date_part"
+        restore_neo4j "$date_part"
         ;;
     "database")
         restore_database "$date_part"
         ;;
     "workflows")
         restore_workflows "$date_part"
+        ;;
+    "ai-services")
+        restore_qdrant "$date_part"
+        restore_flowise "$date_part"
+        restore_neo4j "$date_part"
         ;;
     esac
 
@@ -282,6 +386,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --database-only)
         RESTORE_TYPE="database"
+        shift
+        ;;
+    --ai-services-only)
+        RESTORE_TYPE="ai-services"
         shift
         ;;
     --list)
