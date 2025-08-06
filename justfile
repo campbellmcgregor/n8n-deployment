@@ -54,10 +54,21 @@ stop:
   @echo "🛑 Stopping all services..."
   @echo "Stopping core n8n services..."
   @docker compose down 2>/dev/null || true
-  @echo "Stopping utility platforms..."
+  @echo "Stopping combined stacks..."
+  @docker compose -f docker-compose.yml -f docker-compose.langfuse.yml down 2>/dev/null || true
+  @docker compose -f docker-compose.yml -f docker-compose.supabase.yml down 2>/dev/null || true
+  @docker compose -f docker-compose.yml -f docker-compose.supabase-minimal.yml down 2>/dev/null || true
+  @echo "Stopping individual utility platforms..."
   @docker compose -f docker-compose.supabase.yml down 2>/dev/null || true
   @docker compose -f docker-compose.supabase-minimal.yml down 2>/dev/null || true
   @docker compose -f docker-compose.langfuse.yml down 2>/dev/null || true
+  @echo "Cleaning up any remaining containers..."
+  @docker stop $(docker ps -q --filter "name=langfuse-*") 2>/dev/null || true
+  @docker stop $(docker ps -q --filter "name=supabase-*") 2>/dev/null || true
+  @docker stop $(docker ps -q --filter "name=n8n-*") 2>/dev/null || true
+  @docker rm $(docker ps -aq --filter "name=langfuse-*") 2>/dev/null || true
+  @docker rm $(docker ps -aq --filter "name=supabase-*") 2>/dev/null || true
+  @docker rm $(docker ps -aq --filter "name=n8n-*") 2>/dev/null || true
   @echo "✅ All services stopped!"
 
 # Stop only core n8n services (excludes utilities)
@@ -70,10 +81,21 @@ stop-force:
   @echo "🛑 Force stopping all services..."
   @echo "Force stopping core n8n services..."
   @docker compose down --timeout 10 2>/dev/null || true
-  @echo "Force stopping utility platforms..."
+  @echo "Force stopping combined stacks..."
+  @docker compose -f docker-compose.yml -f docker-compose.langfuse.yml down --timeout 10 2>/dev/null || true
+  @docker compose -f docker-compose.yml -f docker-compose.supabase.yml down --timeout 10 2>/dev/null || true
+  @docker compose -f docker-compose.yml -f docker-compose.supabase-minimal.yml down --timeout 10 2>/dev/null || true
+  @echo "Force stopping individual utility platforms..."
   @docker compose -f docker-compose.supabase.yml down --timeout 10 2>/dev/null || true
   @docker compose -f docker-compose.supabase-minimal.yml down --timeout 10 2>/dev/null || true
   @docker compose -f docker-compose.langfuse.yml down --timeout 10 2>/dev/null || true
+  @echo "Force killing any remaining containers..."
+  @docker kill $(docker ps -q --filter "name=langfuse-*") 2>/dev/null || true
+  @docker kill $(docker ps -q --filter "name=supabase-*") 2>/dev/null || true
+  @docker kill $(docker ps -q --filter "name=n8n-*") 2>/dev/null || true
+  @docker rm -f $(docker ps -aq --filter "name=langfuse-*") 2>/dev/null || true
+  @docker rm -f $(docker ps -aq --filter "name=supabase-*") 2>/dev/null || true
+  @docker rm -f $(docker ps -aq --filter "name=n8n-*") 2>/dev/null || true
   @echo "✅ All services force stopped!"
 
 # Stop services and remove volumes (⚠️ DELETES ALL DATA!)
