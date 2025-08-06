@@ -49,15 +49,32 @@ start-https-dev:
   @echo "🔄 Starting n8n services with HTTPS and development mode..."
   ./scripts/start_n8n.sh --https --dev
 
-# Stop n8n services gracefully
+# Stop all services gracefully (core + AI services + utilities)
 stop:
-  @echo "🛑 Stopping n8n services..."
+  @echo "🛑 Stopping all services..."
+  @echo "Stopping core n8n services..."
+  @docker compose down 2>/dev/null || true
+  @echo "Stopping utility platforms..."
+  @docker compose -f docker-compose.supabase.yml down 2>/dev/null || true
+  @docker compose -f docker-compose.supabase-minimal.yml down 2>/dev/null || true
+  @docker compose -f docker-compose.langfuse.yml down 2>/dev/null || true
+  @echo "✅ All services stopped!"
+
+# Stop only core n8n services (excludes utilities)
+stop-core:
+  @echo "🛑 Stopping core n8n services..."
   ./scripts/stop_n8n.sh
 
-# Force stop n8n services without confirmation
+# Force stop all services without confirmation
 stop-force:
-  @echo "🛑 Force stopping n8n services..."
-  ./scripts/stop_n8n.sh --force
+  @echo "🛑 Force stopping all services..."
+  @echo "Force stopping core n8n services..."
+  @docker compose down --timeout 10 2>/dev/null || true
+  @echo "Force stopping utility platforms..."
+  @docker compose -f docker-compose.supabase.yml down --timeout 10 2>/dev/null || true
+  @docker compose -f docker-compose.supabase-minimal.yml down --timeout 10 2>/dev/null || true
+  @docker compose -f docker-compose.langfuse.yml down --timeout 10 2>/dev/null || true
+  @echo "✅ All services force stopped!"
 
 # Stop services and remove volumes (⚠️ DELETES ALL DATA!)
 stop-clean:
@@ -561,8 +578,9 @@ help-start:
 
 help-stop:
   @echo "🛑 Stop Commands:"
-  @echo "  just stop               - Stop core services gracefully"
-  @echo "  just stop-force         - Force stop without confirmation"
+  @echo "  just stop               - Stop ALL services (core + AI + utilities)"
+  @echo "  just stop-core          - Stop only core n8n services"
+  @echo "  just stop-force         - Force stop ALL services without confirmation"
   @echo "  just stop-supabase      - Stop Supabase platform"
   @echo "  just stop-langfuse      - Stop Langfuse observability"
   @echo "  just stop-utilities     - Stop both utility platforms"
