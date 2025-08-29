@@ -668,10 +668,9 @@ fix-permissions:
       sudo chown -R "$N8N_UID:$N8N_GID" "$ssh_dir"
       sudo chmod 700 "$ssh_dir"
       # SSH private keys need 600, public keys can be 644
-      if [ -f "$ssh_dir/id_"* ]; then
-        sudo find "$ssh_dir" -name "id_*" -not -name "*.pub" -exec chmod 600 {} \;
-        sudo find "$ssh_dir" -name "*.pub" -exec chmod 644 {} \;
-      fi
+      # Check for SSH keys and set permissions
+      sudo find "$ssh_dir" -name "id_*" -not -name "*.pub" -exec chmod 600 {} \; 2>/dev/null || true
+      sudo find "$ssh_dir" -name "*.pub" -exec chmod 644 {} \; 2>/dev/null || true
       sudo find "$ssh_dir" -name "config" -exec chmod 600 {} \; 2>/dev/null || true
       sudo find "$ssh_dir" -name "known_hosts" -exec chmod 644 {} \; 2>/dev/null || true
       echo "  ✓ Fixed SSH permissions for $ssh_dir/"
