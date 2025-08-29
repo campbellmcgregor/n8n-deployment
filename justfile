@@ -624,6 +624,100 @@ clean-all:
   @echo "🧹 Performing full Docker cleanup..."
   @docker system prune -a -f --volumes
 
+# Fix file permissions for Docker container access
+fix-permissions:
+  #!/usr/bin/env sh
+  echo "🔧 Fixing file permissions for Docker container access..."
+  
+  # Check if Docker is running
+  if ! docker info >/dev/null 2>&1; then
+    echo "❌ Docker daemon is not running. Please start Docker first."
+    exit 1
+  fi
+  
+  # Get n8n container user ID (default to 1000 if container not running)
+  N8N_UID=1000
+  N8N_GID=1000
+  
+  if docker compose ps n8n 2>/dev/null | grep -q "Up"; then
+    N8N_UID=$(docker compose exec -T n8n id -u node 2>/dev/null || echo "1000")
+    N8N_GID=$(docker compose exec -T n8n id -g node 2>/dev/null || echo "1000")
+  fi
+  
+  echo "Using container user ID: $N8N_UID:$N8N_GID"
+  
+  # Function to fix directory permissions
+  fix_directory() {
+    dir="$1"
+    if [ -d "$dir" ]; then
+      echo "  Fixing permissions for $dir/"
+      sudo chown -R "$N8N_UID:$N8N_GID" "$dir"
+      sudo find "$dir" -type d -exec chmod 755 {} \;
+      sudo find "$dir" -type f -exec chmod 644 {} \;
+      echo "  ✓ Fixed $dir/"
+    else
+      echo "  ⚠  Directory $dir/ does not exist, skipping"
+    fi
+  }
+  
+  # Function to fix SSH permissions specifically
+  fix_ssh_permissions() {
+    ssh_dir="$1"
+    if [ -d "$ssh_dir" ]; then
+      echo "  Fixing SSH permissions for $ssh_dir/"
+      sudo chown -R "$N8N_UID:$N8N_GID" "$ssh_dir"
+      sudo chmod 700 "$ssh_dir"
+      # SSH private keys need 600, public keys can be 644
+      if [ -f "$ssh_dir/id_"* ]; then
+        sudo find "$ssh_dir" -name "id_*" -not -name "*.pub" -exec chmod 600 {} \;
+        sudo find "$ssh_dir" -name "*.pub" -exec chmod 644 {} \;
+      fi
+      sudo find "$ssh_dir" -name "config" -exec chmod 600 {} \; 2>/dev/null || true
+      sudo find "$ssh_dir" -name "known_hosts" -exec chmod 644 {} \; 2>/dev/null || true
+      echo "  ✓ Fixed SSH permissions for $ssh_dir/"
+    fi
+  }
+  
+  # Fix permissions for bind-mounted directories
+  echo ""
+  echo "Fixing permissions for bind-mounted directories:"
+  
+  fix_directory "./backups"
+  fix_directory "./custom-nodes"
+  fix_directory "./external-hooks"
+  fix_directory "./logs"
+  fix_directory "./git-repos"
+  
+  # Special handling for git-config directory
+  if [ -d "./git-config" ]; then
+    echo "  Fixing permissions for ./git-config/"
+    sudo chown -R "$N8N_UID:$N8N_GID" "./git-config"
+    sudo chmod 755 "./git-config"
+    # Fix regular files in git-config
+    sudo find "./git-config" -type f -not -path "*/.ssh/*" -exec chmod 644 {} \;
+    echo "  ✓ Fixed ./git-config/"
+    
+    # Special SSH handling
+    fix_ssh_permissions "./git-config/.ssh"
+  else
+    echo "  ⚠  Directory ./git-config/ does not exist, skipping"
+  fi
+  
+  # Make any shell scripts executable
+  echo ""
+  echo "Making shell scripts executable:"
+  for script in ./scripts/*.sh; do
+    if [ -f "$script" ]; then
+      sudo chmod +x "$script"
+      echo "  ✓ Made $script executable"
+    fi
+  done
+  
+  echo ""
+  echo "✅ Permission fix complete!"
+  echo "   Container user: $N8N_UID:$N8N_GID"
+  echo "   All bind-mounted directories should now be accessible by n8n container"
+
 # Utility Commands
 # ================
 
@@ -770,4 +864,19 @@ help-backup-utils:
   @echo ""
   @echo "Examples:"
   @echo "  just backup-utilities           # Backup both platforms"
-  @echo "  just restore-supabase 20250805_120000  # Restore specific Supabase backup" 
+  @echo "  just restore-supabase 20250805_120000  # Restore specific Supabase backup"
+
+help-maintenance:
+  @echo "🔧 Maintenance & Troubleshooting Commands:"
+  @echo "  just fix-permissions            - Fix file permissions for Docker container access"
+  @echo "  just git-config                 - Configure Git identity for commits"
+  @echo "  just check-deps                 - Check if required tools are installed"
+  @echo "  just health                     - Comprehensive health check of all services"
+  @echo "  just clean-containers           - Remove stopped Docker containers"
+  @echo "  just clean-images               - Remove unused Docker images"
+  @echo "  just clean-volumes              - Remove unused Docker volumes (⚠️ May delete data!)"
+  @echo "  just clean-all                  - Full Docker cleanup (⚠️ DESTRUCTIVE!)"
+  @echo ""
+  @echo "Permission Issues:"
+  @echo "  If you encounter 'permission denied' errors with files or directories,"
+  @echo "  run 'just fix-permissions' to align host and container file ownership." 
