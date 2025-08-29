@@ -140,3 +140,4 @@ git-repos/
 # Database dumps
 *.dump
 *.sql.gz
+backups/
