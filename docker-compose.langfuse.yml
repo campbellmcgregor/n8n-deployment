@@ -1,0 +1,189 @@
+# Langfuse LLM Observability Stack
+# This stack provides comprehensive LLM tracking and analytics capabilities
+# Reuses existing PostgreSQL and Redis from the core deployment for efficiency
+
+version: '3.8'
+
+volumes:
+  clickhouse_data:
+  clickhouse_logs:
+  minio_data:
+
+networks:
+  default:
+    external: true
+    name: n8n-deployment_n8n-network
+
+services:
+  # Langfuse Web Dashboard
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: langfuse-web
+    hostname: langfuse-web
+    restart: unless-stopped
+    ports:
+      - "${LANGFUSE_PORT:-3002}:3000"
+    environment:
+      # Database Configuration (reuses existing PostgreSQL)
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-n8n}:${POSTGRES_PASSWORD}@postgres:5432/langfuse
+      
+      # Authentication & Security
+      - NEXTAUTH_URL=http://localhost:${LANGFUSE_PORT:-3002}
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}
+      - SALT=${LANGFUSE_SALT}
+      - ENCRYPTION_KEY=${LANGFUSE_ENCRYPTION_KEY}
+      
+      # Analytics Database (ClickHouse)
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=clickhouse
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      
+      # S3 Storage Configuration (MinIO)
+      - LANGFUSE_S3_EVENT_UPLOAD_ENABLED=true
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=minio
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9002
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
+      
+      - LANGFUSE_S3_MEDIA_UPLOAD_ENABLED=true
+      - LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_MEDIA_UPLOAD_REGION=auto
+      - LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID=minio
+      - LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://minio:9002
+      - LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
+      
+      # Redis Configuration (reuses existing Redis)
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=${REDIS_AUTH:-}
+      
+      # Feature Flags & Configuration
+      - TELEMETRY_ENABLED=${LANGFUSE_TELEMETRY_ENABLED:-false}
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-true}
+      
+      # Initial User Setup
+      - LANGFUSE_INIT_ORG_ID=${LANGFUSE_INIT_ORG_ID:-}
+      - LANGFUSE_INIT_ORG_NAME=${LANGFUSE_INIT_ORG_NAME:-Default Organization}
+      - LANGFUSE_INIT_PROJECT_ID=${LANGFUSE_INIT_PROJECT_ID:-}
+      - LANGFUSE_INIT_PROJECT_NAME=${LANGFUSE_INIT_PROJECT_NAME:-Default Project}
+      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-}
+      - LANGFUSE_INIT_PROJECT_SECRET_KEY=${LANGFUSE_INIT_PROJECT_SECRET_KEY:-}
+      - LANGFUSE_INIT_USER_EMAIL=${LANGFUSE_INIT_USER_EMAIL:-admin@example.com}
+      - LANGFUSE_INIT_USER_NAME=${LANGFUSE_INIT_USER_NAME:-Admin User}
+      - LANGFUSE_INIT_USER_PASSWORD=${LANGFUSE_INIT_USER_PASSWORD:-admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # Langfuse Worker (Background Processing)
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: langfuse-worker
+    hostname: langfuse-worker
+    restart: unless-stopped
+    environment:
+      # Database Configuration (reuses existing PostgreSQL)
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-n8n}:${POSTGRES_PASSWORD}@postgres:5432/langfuse
+      
+      # Security
+      - SALT=${LANGFUSE_SALT}
+      - ENCRYPTION_KEY=${LANGFUSE_ENCRYPTION_KEY}
+      
+      # Analytics Database (ClickHouse)
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=clickhouse
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      
+      # S3 Storage Configuration (MinIO)
+      - LANGFUSE_S3_EVENT_UPLOAD_ENABLED=true
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=minio
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9002
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
+      
+      # Redis Configuration (reuses existing Redis)
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=${REDIS_AUTH:-}
+      
+      # Processing Configuration
+      - LANGFUSE_INGESTION_QUEUE_DELAY_MS=${LANGFUSE_INGESTION_QUEUE_DELAY_MS:-1000}
+      - LANGFUSE_INGESTION_CLICKHOUSE_WRITE_INTERVAL_MS=${LANGFUSE_INGESTION_CLICKHOUSE_WRITE_INTERVAL_MS:-10000}
+      
+      # Feature Flags
+      - TELEMETRY_ENABLED=${LANGFUSE_TELEMETRY_ENABLED:-false}
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # ClickHouse Analytics Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: langfuse-clickhouse
+    hostname: clickhouse
+    restart: unless-stopped
+    user: "101:101"
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    environment:
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_USER=clickhouse
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # MinIO S3-Compatible Storage
+  minio:
+    image: minio/minio:latest
+    container_name: langfuse-minio
+    hostname: minio
+    restart: unless-stopped
+    ports:
+      - "${MINIO_API_PORT:-9002}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    # Create the langfuse bucket - using entry point script
+    command: server /data --address ":9000" --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s

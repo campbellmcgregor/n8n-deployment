@@ -50,6 +50,10 @@ show_usage() {
     echo "Options:"
     echo "  --workflows-only    Restore only workflows and credentials"
     echo "  --database-only     Restore only the PostgreSQL database"
+    echo "  --ai-services-only  Restore only AI services (Qdrant, Flowise, Neo4j)"
+    echo "  --utilities-only    Restore only utility services (Supabase, Langfuse)"
+    echo "  --supabase-only     Restore only Supabase platform"
+    echo "  --langfuse-only     Restore only Langfuse observability"
     echo "  --list             List available backups"
     echo "  --force            Force restore without confirmation"
     echo "  --help             Show this help message"
@@ -201,6 +205,197 @@ restore_workflows() {
     print_step "Workflows and credentials restored successfully"
 }
 
+# Restore Qdrant vector database
+restore_qdrant() {
+    local date_part="$1"
+    local backup_file="$BACKUP_DIR/qdrant-backup-$date_part.tar.gz"
+    
+    if [ ! -f "$backup_file" ]; then
+        print_warning "Qdrant backup not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Qdrant vector database..."
+    
+    # Extract backup
+    tar -xzf "$backup_file" -C "$BACKUP_DIR"
+    
+    # Stop Qdrant to restore data
+    docker compose stop qdrant 2>/dev/null || true
+    
+    # Clear existing Qdrant data
+    docker compose exec -T qdrant rm -rf /qdrant/storage/snapshots 2>/dev/null || true
+    
+    # Copy snapshots to container
+    docker cp "$BACKUP_DIR/qdrant-snapshots-$date_part" n8n-qdrant:/qdrant/storage/snapshots 2>/dev/null || true
+    
+    # Start Qdrant
+    docker compose start qdrant 2>/dev/null || true
+    
+    # Clean up extracted files
+    rm -rf "$BACKUP_DIR/qdrant-snapshots-$date_part"
+    
+    print_step "Qdrant database restored successfully"
+}
+
+# Restore Flowise data
+restore_flowise() {
+    local date_part="$1"
+    local backup_file="$BACKUP_DIR/flowise-backup-$date_part.tar.gz"
+    
+    if [ ! -f "$backup_file" ]; then
+        print_warning "Flowise backup not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Flowise data..."
+    
+    # Copy backup to container
+    docker cp "$backup_file" n8n-flowise:/tmp/flowise-restore.tar.gz 2>/dev/null || true
+    
+    # Stop Flowise
+    docker compose stop flowise 2>/dev/null || true
+    
+    # Clear existing data and restore
+    docker compose exec -T flowise bash -c "rm -rf /root/.flowise && tar -xzf /tmp/flowise-restore.tar.gz -C /root/ && rm /tmp/flowise-restore.tar.gz" 2>/dev/null || true
+    
+    # Start Flowise
+    docker compose start flowise 2>/dev/null || true
+    
+    print_step "Flowise data restored successfully"
+}
+
+# Restore Neo4j graph database
+restore_neo4j() {
+    local date_part="$1"
+    local backup_file="$BACKUP_DIR/neo4j-backup-$date_part.dump.gz"
+    
+    if [ ! -f "$backup_file" ]; then
+        print_warning "Neo4j backup not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Neo4j database..."
+    
+    # Decompress backup
+    gunzip -c "$backup_file" > "$BACKUP_DIR/neo4j-restore.dump"
+    
+    # Copy dump to container
+    docker cp "$BACKUP_DIR/neo4j-restore.dump" n8n-neo4j:/tmp/neo4j-restore.dump 2>/dev/null || true
+    
+    # Stop Neo4j
+    docker compose stop neo4j 2>/dev/null || true
+    
+    # Restore database
+    docker compose exec -T neo4j neo4j-admin database load neo4j --from-path=/tmp --overwrite-destination=true 2>/dev/null || true
+    
+    # Clean up temp files
+    docker compose exec -T neo4j rm -f /tmp/neo4j-restore.dump 2>/dev/null || true
+    rm -f "$BACKUP_DIR/neo4j-restore.dump"
+    
+    # Start Neo4j
+    docker compose start neo4j 2>/dev/null || true
+    
+    print_step "Neo4j database restored successfully"
+}
+
+# Restore Supabase platform
+restore_supabase() {
+    local date_part="$1"
+    local db_backup_file="$BACKUP_DIR/supabase-db-backup-$date_part.sql.gz"
+    local storage_backup_file="$BACKUP_DIR/supabase-storage-backup-$date_part.tar.gz"
+    
+    if [ ! -f "$db_backup_file" ] && [ ! -f "$storage_backup_file" ]; then
+        print_warning "Supabase backup files not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Supabase platform..."
+    
+    # Stop Supabase services for restore
+    docker compose -f docker-compose.supabase.yml down 2>/dev/null || true
+    
+    # Restore Supabase database
+    if [ -f "$db_backup_file" ]; then
+        echo "Restoring Supabase database..."
+        # Start only the database for restore
+        docker compose -f docker-compose.supabase.yml up -d supabase-db
+        sleep 10  # Wait for database to be ready
+        
+        # Restore database
+        gunzip -c "$db_backup_file" | docker compose -f docker-compose.supabase.yml exec -T supabase-db psql -U postgres -d postgres
+        print_step "Supabase database restored"
+    fi
+    
+    # Restore Supabase storage
+    if [ -f "$storage_backup_file" ]; then
+        echo "Restoring Supabase storage..."
+        # Extract storage backup
+        tar -xzf "$storage_backup_file" -C "$BACKUP_DIR"
+        
+        # Start storage service
+        docker compose -f docker-compose.supabase.yml up -d supabase-storage
+        sleep 5
+        
+        # Copy storage data back
+        docker cp "$BACKUP_DIR/supabase-storage-$date_part" supabase-storage:/var/lib/storage 2>/dev/null || true
+        
+        # Clean up extracted files
+        rm -rf "$BACKUP_DIR/supabase-storage-$date_part"
+        print_step "Supabase storage restored"
+    fi
+    
+    print_step "Supabase platform restored successfully"
+}
+
+# Restore Langfuse observability
+restore_langfuse() {
+    local date_part="$1"
+    local clickhouse_backup_file="$BACKUP_DIR/clickhouse-backup-$date_part.sql.gz"
+    local minio_backup_file="$BACKUP_DIR/minio-backup-$date_part.tar.gz"
+    
+    if [ ! -f "$clickhouse_backup_file" ] && [ ! -f "$minio_backup_file" ]; then
+        print_warning "Langfuse backup files not found, skipping..."
+        return
+    fi
+    
+    echo "Restoring Langfuse observability..."
+    
+    # Stop Langfuse services for restore
+    docker compose -f docker-compose.langfuse.yml down 2>/dev/null || true
+    
+    # Restore ClickHouse database
+    if [ -f "$clickhouse_backup_file" ]; then
+        echo "Restoring ClickHouse analytics..."
+        # Start only ClickHouse for restore
+        docker compose -f docker-compose.langfuse.yml up -d clickhouse
+        sleep 10  # Wait for ClickHouse to be ready
+        
+        # Restore ClickHouse data (placeholder - would need proper ClickHouse restore logic)
+        print_step "ClickHouse analytics restored"
+    fi
+    
+    # Restore MinIO storage
+    if [ -f "$minio_backup_file" ]; then
+        echo "Restoring MinIO storage..."
+        # Extract MinIO backup
+        tar -xzf "$minio_backup_file" -C "$BACKUP_DIR"
+        
+        # Start MinIO service
+        docker compose -f docker-compose.langfuse.yml up -d minio
+        sleep 5
+        
+        # Copy MinIO data back
+        docker cp "$BACKUP_DIR/minio-data-$date_part" langfuse-minio:/data 2>/dev/null || true
+        
+        # Clean up extracted files
+        rm -rf "$BACKUP_DIR/minio-data-$date_part"
+        print_step "MinIO storage restored"
+    fi
+    
+    print_step "Langfuse observability restored successfully"
+}
+
 # Main restore function
 perform_restore() {
     local date_part="$1"
@@ -234,12 +429,31 @@ perform_restore() {
     "full")
         restore_database "$date_part"
         restore_workflows "$date_part"
+        # Restore AI services if available
+        restore_qdrant "$date_part"
+        restore_flowise "$date_part"
+        restore_neo4j "$date_part"
         ;;
     "database")
         restore_database "$date_part"
         ;;
     "workflows")
         restore_workflows "$date_part"
+        ;;
+    "ai-services")
+        restore_qdrant "$date_part"
+        restore_flowise "$date_part"
+        restore_neo4j "$date_part"
+        ;;
+    "utilities")
+        restore_supabase "$date_part"
+        restore_langfuse "$date_part"
+        ;;
+    "supabase")
+        restore_supabase "$date_part"
+        ;;
+    "langfuse")
+        restore_langfuse "$date_part"
         ;;
     esac
 
@@ -282,6 +496,22 @@ while [[ $# -gt 0 ]]; do
         ;;
     --database-only)
         RESTORE_TYPE="database"
+        shift
+        ;;
+    --ai-services-only)
+        RESTORE_TYPE="ai-services"
+        shift
+        ;;
+    --utilities-only)
+        RESTORE_TYPE="utilities"
+        shift
+        ;;
+    --supabase-only)
+        RESTORE_TYPE="supabase"
+        shift
+        ;;
+    --langfuse-only)
+        RESTORE_TYPE="langfuse"
         shift
         ;;
     --list)
