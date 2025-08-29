@@ -43,6 +43,10 @@ x-n8n-common: &n8n-common
     - QUEUE_BULL_REDIS_PORT=6379
     - QUEUE_BULL_REDIS_DB=${REDIS_DB:-0}
     - QUEUE_HEALTH_CHECK_ACTIVE=true
+    - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-n8n User}
+    - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-n8n@localhost}
+    - GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-n8n User}
+    - GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-n8n@localhost}
   env_file:
     - .env
   volumes:
@@ -52,6 +56,9 @@ x-n8n-common: &n8n-common
     - ./external-hooks:/home/node/.n8n/external-hooks
     - ./logs:/home/node/.n8n/logs
     - ./shared:/data/shared
+    - ./git-config/.ssh:/home/node/.ssh:ro
+    - ./git-config/.gitconfig:/home/node/.gitconfig:ro
+    - ./git-repos:/home/node/git-repos
   depends_on:
     postgres:
       condition: service_healthy

@@ -493,20 +493,113 @@ env:
   @echo "🔧 Container environment:"
   @docker compose exec n8n env | grep N8N_
 
-# Execute bash shell in n8n container
+# Execute shell in n8n container
 shell:
   @echo "🐚 Opening shell in n8n container..."
-  docker compose exec n8n bash
+  docker compose exec n8n sh
 
-# Execute bash shell in PostgreSQL container
+# Execute shell in PostgreSQL container
 shell-db:
   @echo "🐚 Opening shell in PostgreSQL container..."
-  docker compose exec postgres bash
+  docker compose exec postgres sh
 
-# Execute bash shell in Redis container
+# Execute shell in Redis container
 shell-redis:
   @echo "🐚 Opening shell in Redis container..."
-  docker compose exec redis bash
+  docker compose exec redis sh
+
+# GitHub Integration
+# ==================
+
+# Configure Git identity for commits
+git-config:
+  #!/usr/bin/env sh
+  echo "🔧 Configuring Git identity..."
+  printf "Enter your full name: "; read git_name
+  printf "Enter your email address: "; read git_email
+  
+  # Update .env file
+  if [ -f .env ]; then
+    # Remove existing git config lines
+    grep -v "^GIT_AUTHOR_NAME=" .env > .env.tmp || true
+    grep -v "^GIT_AUTHOR_EMAIL=" .env.tmp > .env.tmp2 || true
+    grep -v "^GIT_COMMITTER_NAME=" .env.tmp2 > .env.tmp3 || true
+    grep -v "^GIT_COMMITTER_EMAIL=" .env.tmp3 > .env || true
+    rm -f .env.tmp .env.tmp2 .env.tmp3
+    
+    # Add new git config
+    echo "" >> .env
+    echo "# Git Configuration" >> .env
+    echo "GIT_AUTHOR_NAME=\"$git_name\"" >> .env
+    echo "GIT_AUTHOR_EMAIL=\"$git_email\"" >> .env
+    echo "GIT_COMMITTER_NAME=\"$git_name\"" >> .env
+    echo "GIT_COMMITTER_EMAIL=\"$git_email\"" >> .env
+  else
+    echo "❌ .env file not found. Run 'just setup' first."
+    exit 1
+  fi
+  
+  echo "✅ Git identity configured!"
+  echo "   Name: $git_name"
+  echo "   Email: $git_email"
+  echo ""
+  echo "Restarting n8n to apply changes..."
+  just restart
+
+# Setup GitHub integration for n8n
+github-setup:
+  @echo "🔑 Setting up GitHub integration..."
+  ./scripts/setup-github.sh
+
+# Display SSH public key for GitHub
+github-key:
+  @echo "📋 Your SSH Public Key:"
+  @echo ""
+  @cat ./git-config/.ssh/id_ed25519.pub 2>/dev/null || echo "❌ No SSH key found. Run 'just github-setup' first."
+  @echo ""
+  @echo "Add this key to: https://github.com/settings/keys"
+
+# Test GitHub connectivity
+github-test:
+  @echo "🧪 Testing GitHub connectivity..."
+  @if [ -f ./git-config/.ssh/id_ed25519 ]; then \
+    docker compose exec n8n ssh -T git@github.com 2>&1 | grep -q "successfully authenticated" && echo "✅ GitHub authentication successful!" || echo "⚠️  GitHub authentication test completed (this is normal if you see 'permission denied (publickey)')"; \
+  else \
+    echo "❌ No SSH key found. Run 'just github-setup' first."; \
+  fi
+
+# Clone a GitHub repository
+github-clone REPO:
+  @echo "📦 Cloning repository: {{REPO}}..."
+  @if [ -f ./git-config/.ssh/id_ed25519 ]; then \
+    docker compose exec n8n sh -c "cd /home/node/git-repos && git clone {{REPO}}"; \
+  else \
+    echo "❌ No SSH key found. Run 'just github-setup' first."; \
+  fi
+
+# List cloned repositories
+github-repos:
+  @echo "📂 Cloned repositories:"
+  @ls -la ./git-repos/ 2>/dev/null | grep -E '^d' | grep -v '^\.' || echo "No repositories cloned yet."
+
+# Pull updates for all repositories
+github-pull-all:
+  @echo "🔄 Pulling updates for all repositories..."
+  @if [ -d ./git-repos ] && [ "$(ls -A ./git-repos)" ]; then \
+    for repo in ./git-repos/*/; do \
+      if [ -d "$$repo/.git" ]; then \
+        echo "Updating $$(basename $$repo)..."; \
+        docker compose exec n8n sh -c "cd /home/node/git-repos/$$(basename $$repo) && git pull"; \
+      fi; \
+    done; \
+  else \
+    echo "No repositories found in git-repos/"; \
+  fi
+
+# Execute git command in a repository
+github-exec REPO CMD:
+  @echo "🔧 Executing in {{REPO}}: {{CMD}}"
+  @docker compose exec n8n sh -c "cd /home/node/git-repos/{{REPO}} && {{CMD}}"
 
 # Cleanup Operations
 # ==================
@@ -563,7 +656,7 @@ urls-utilities:
 
 # Check if required tools are installed
 check-deps:
-  #!/usr/bin/env bash
+  #!/usr/bin/env sh
   echo "🔍 Checking dependencies..."
   for tool in docker docker compose openssl curl; do
     if command -v $tool >/dev/null 2>&1; then
@@ -583,7 +676,7 @@ update:
 reset:
   @echo "🔄 Resetting entire deployment..."
   @echo "⚠️  This will delete ALL data and containers!"
-  @read -p "Are you sure? Type 'yes' to confirm: " confirm && [ "$confirm" = "yes" ] || exit 1
+  @printf "Are you sure? Type 'yes' to confirm: "; read confirm && [ "$confirm" = "yes" ] || exit 1
   docker compose down -v --remove-orphans
   docker system prune -f
   @echo "✅ Reset complete. Run 'just setup' to reinitialize."

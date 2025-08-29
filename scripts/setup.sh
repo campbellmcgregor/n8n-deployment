@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Local n8n Setup Script
 # This script helps you set up a local n8n deployment
@@ -39,6 +39,16 @@ command_exists() {
 # Generate secure random key
 generate_key() {
     openssl rand -hex 32
+}
+
+# Generate secure random key (64 chars)
+generate_key_64() {
+    openssl rand -hex 64
+}
+
+# Generate secure password (16 chars)
+generate_password() {
+    openssl rand -base64 12 | tr -d "/+" | cut -c1-16
 }
 
 print_warning() {
@@ -96,32 +106,54 @@ setup_environment() {
         cp .env .env.backup
     fi
 
-    if [ ! -f "env.template" ]; then
-        print_error "env.template file not found!"
+    if [ ! -f ".env.example" ]; then
+        print_error ".env.example file not found!"
         exit 1
     fi
 
     print_step "Copying environment template"
-    cp env.template .env
+    cp .env.example .env
 
-    # Generate secure keys
-    print_step "Generating secure keys..."
-    ENCRYPTION_KEY=$(generate_key)
-    JWT_SECRET=$(generate_key)
-    DB_PASSWORD=$(generate_key | cut -c1-16) # Shorter for DB password
+    # Generate all secure keys and passwords
+    print_step "Generating secure keys and passwords..."
+    N8N_ENCRYPTION_KEY=$(generate_key)
+    N8N_JWT_SECRET=$(generate_key)
+    POSTGRES_PASSWORD=$(generate_password)
+    FLOWISE_PASSWORD=$(generate_password)
+    NEO4J_PASSWORD=$(generate_password)
+    LANGFUSE_SALT=$(generate_key_64)
+    LANGFUSE_NEXTAUTH_SECRET=$(generate_key_64)
+    LANGFUSE_ENCRYPTION_KEY=$(generate_key_64)
+    LANGFUSE_ADMIN_PASSWORD=$(generate_password)
+    CLICKHOUSE_PASSWORD=$(generate_password)
+    MINIO_PASSWORD=$(generate_password)
+    SUPABASE_JWT_SECRET=$(generate_key)
+    SUPABASE_DB_PASSWORD=$(generate_password)
+    SUPABASE_DASHBOARD_PASSWORD=$(generate_password)
 
-    # Replace placeholders in .env file
+    # Replace all placeholders in .env file
     if command_exists sed; then
-        sed -i.tmp "s/your_encryption_key_here_32_chars_min/$ENCRYPTION_KEY/g" .env
-        sed -i.tmp "s/your_jwt_secret_here_32_chars_minimum/$JWT_SECRET/g" .env
-        sed -i.tmp "s/n8n_secure_password/$DB_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_32_char_hex_string/$N8N_ENCRYPTION_KEY/g" .env
+        sed -i.tmp "s/CHANGE_ME_secure_password/$POSTGRES_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_password/$NEO4J_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_64_char_hex_string/$LANGFUSE_SALT/g" .env
+        sed -i.tmp "s/CHANGE_ME_admin_password/$LANGFUSE_ADMIN_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_clickhouse_password/$CLICKHOUSE_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_minio_password/$MINIO_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_supabase_db_password/$SUPABASE_DB_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_dashboard_password/$SUPABASE_DASHBOARD_PASSWORD/g" .env
+        sed -i.tmp "s/CHANGE_ME_supabase_anon_jwt_token/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MTc2OTIwMCwiZXhwIjoxNzk5NTM1NjAwfQ.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE/g" .env
+        sed -i.tmp "s/CHANGE_ME_supabase_service_role_jwt_token/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE3OTk1MzU2MDB9.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q/g" .env
+        
+        # Handle the multi-line replacements separately
+        sed -i.tmp "s/LANGFUSE_NEXTAUTH_SECRET=CHANGE_ME_64_char_hex_string/LANGFUSE_NEXTAUTH_SECRET=$LANGFUSE_NEXTAUTH_SECRET/g" .env
+        sed -i.tmp "s/LANGFUSE_ENCRYPTION_KEY=CHANGE_ME_64_char_hex_string/LANGFUSE_ENCRYPTION_KEY=$LANGFUSE_ENCRYPTION_KEY/g" .env
+        
         rm -f .env.tmp
-        print_step "Updated .env file with secure keys"
+        print_step "Updated .env file with secure keys and passwords"
     else
         print_warning "sed command not found. Please manually update the .env file with secure keys."
-        print_color $YELLOW "Encryption Key: $ENCRYPTION_KEY"
-        print_color $YELLOW "JWT Secret: $JWT_SECRET"
-        print_color $YELLOW "DB Password: $DB_PASSWORD"
+        print_color $YELLOW "Run 'just git-config' to set up Git identity after setup."
     fi
 }
 
@@ -179,7 +211,7 @@ main() {
     read -p "Do you want to start the services now? (y/N): " -n 1 -r
     echo ""
 
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
         start_services
         show_access_info
     else
@@ -188,6 +220,6 @@ main() {
 }
 
 # Run main function if script is executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [ "${0##*/}" = "setup.sh" ]; then
     main "$@"
 fi

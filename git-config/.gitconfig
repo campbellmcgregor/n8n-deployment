@@ -1,0 +1,10 @@
+[user]
+    name = campbellmcgregor
+    email = euanmc@pm.me
+[core]
+    autocrlf = input
+    editor = nano
+[pull]
+    rebase = false
+[init]
+    defaultBranch = main
